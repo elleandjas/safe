@@ -7,7 +7,7 @@ LCD_cnt_l   res 1   ; reserve 1 byte for variable LCD_cnt_l
 LCD_cnt_h   res 1   ; reserve 1 byte for variable LCD_cnt_h
 LCD_cnt_ms  res 1   ; reserve 1 byte for ms counter
 LCD_tmp	    res 1   ; reserve 1 byte for temporary use
-LCD_counter res 1   ; reserve 1 byte for counting through nessage
+LCD_counter res 1   ; reserve 1 byte for counting through message
 
 	constant    LCD_E=5	; LCD enable bit
     	constant    LCD_RS=4	; LCD register select bit
