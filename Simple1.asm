@@ -13,7 +13,11 @@ row_store   res 1
 col_store   res 1
 address     res 1
 
-
+;     bsf EECON2, EEPGD
+;     bcf EECON2, CFGS
+;     BSF EECON2, WREN
+;     movlw 0x01
+;     
 	
 
 
@@ -24,6 +28,7 @@ rst	code	0    ; reset vector
 	goto	setup
 
 pdata	code    ; a section of programme memory for storing data
+	
 	; ******* myTable, data in programme memory, and its length *****
 myTable data	    "Jasmine and elle micros!\n"	; message, plus carriage return
 	constant    myTable_l=.24	; length of data
@@ -63,8 +68,9 @@ rstart	movlw	myTable_l-1	; output message to LCD (leave out "\n")
 	call	UART_Transmit_Message 
 	
 	call    delay
-	call    delay 
-
+	call    delay
+	
+    ;*************** keypad code***************************
 	
  	banksel PADCFG1				; PADCFG1 is not in Access Bank!!
 enable	bsf PADCFG1, REPU, BANKED		; PortE pull-ups on
@@ -75,6 +81,9 @@ enable	bsf PADCFG1, REPU, BANKED		; PortE pull-ups on
 outin  movlw 0x0f				;reading the rows
 	movwf TRISE, ACCESS	;inputs 0-3, outputs 4-7
 	
+	
+	movlw  0x04
+	movwf   delay_count
 	call delay
 	
 rowstore
@@ -83,24 +92,29 @@ rowstore
 inout  movlw 0xf0  	
 	movwf TRISE, ACCESS
 	
+	movlw  0x04
+	movwf   delay_count
 	call delay
 	
 colstore
 	movff PORTE, col_store
 	
-read    movf  row_store
-	andwf col_store
+read    movf  row_store, 0
+	iorwf col_store, 0
 	movwf address
+	movlw 0x0
+	movwf TRISH, ACCESS
 	movff address, PORTH
-		
-	
-button  movlw 0xFF
-	movwf TRISD, ACCESS    ;port d is now an input
-	movff PORTD, comp
-	movlw 0x00
-	cpfsgt comp, ACCESS
-	goto	button
-	call	clear_display
+
+    ;***************** clear lcd *************************
+;			
+;button  movlw 0xFF
+;	movwf TRISD, ACCESS    ;port d is now an input
+;	movff PORTD, comp
+;	movlw 0x00
+;	cpfsgt comp, ACCESS
+;	goto	button
+;	call	clear_display
 	
 mynTable data	    "cleared\n"	; message, plus carriage return
 	constant    mynTable_l=.22
@@ -148,9 +162,6 @@ rstartn	movlw	mynTable_l-1	; output message to LCD (leave out "\n")
 delay	decfsz	delay_count	; decrement until zero
 	bra delay
 	return
-
-	
-
 
 	
 	goto start
