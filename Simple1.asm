@@ -84,10 +84,7 @@ read    movf  row_store, 0
 	movff address, PORTH
 	
 	;**************put keyboard on to lcd converter ***********
-;	
-;one	movlw  b'00110001'
-;	movwf  0x77, ACCESS
- ;********************************************     
+   
 
  
  
@@ -96,36 +93,36 @@ read    movf  row_store, 0
  
 
 rbitcheck 
-	movlw 0x00    
-	btfss  col_store, 0x00
-	movwf  a0, ACCESS
-	movlw 0x01    
-	btfss  col_store, 0x01
-	movwf  a0, ACCESS
-	movlw 0x02  
-	btfss  col_store, 0x02
-	movwf  a0, ACCESS
 	movlw 0x03    
-	btfss  col_store, 0x03
+	btfss  row_store, 0x03
+	movwf  a0, ACCESS
+	movlw 0x02    
+	btfss  row_store, 0x02
+	movwf  a0, ACCESS
+	movlw 0x01  
+	btfss  row_store, 0x01
+	movwf  a0, ACCESS
+	movlw 0x00  
+	btfss  row_store, 0x00
 	movwf  a0, ACCESS
 	
 	movlw  0xff
-     movwf   delay_count
-     call delay	
+	movwf   delay_count
+	call delay	
 
 
 cbitcheck 
-	movlw 0x03    
-	btfss  col_store, 0x03
+	movlw 0x03*4    
+	btfss  col_store, 0x07
 	movwf  a1, ACCESS
-	movlw 0x02    
-	btfss  col_store, 0x02
+	movlw 0x02*4    
+	btfss  col_store, 0x06
 	movwf  a1, ACCESS
-	movlw 0x01    
-	btfss  col_store, 0x01
+	movlw 0x01*4    
+	btfss  col_store, 0x05
 	movwf  a1, ACCESS
 	movlw 0x00    
-	btfss  col_store, 0x00
+	btfss  col_store, 0x04
 	movwf  a1, ACCESS
 	
 	
@@ -137,16 +134,13 @@ cbitcheck
 	
 
 adder  movf  a1, 0
-       addwf  a1
-       addwf  a1
-       addwf  a1
-       addwf  a0
-       movf   a0
+       addwf  a0, 0
+    
        movwf  a 
        
-     movlw  0xff
-     movwf   delay_count
-     call delay	
+	movlw  0xff
+	movwf   delay_count
+	call delay	
 
 	
 ;     movlw      b'11110000'
@@ -177,10 +171,7 @@ loop 	tblrd*+			; one byte from PM to TABLAT, increment TBLPRT
 	
 	bra	loop		; keep going until finished
 	
-	  movlw  0xff
-     movwf   delay_count
-     call delay	
-
+	
 
 	;********************output to displays************************		
 rstart		; output message to LCD (leave out "\n")
@@ -189,7 +180,7 @@ rstart		; output message to LCD (leave out "\n")
 	addwf   PLUSW2, 0
 	
 	
-	movlw   0x01 
+	movlw   0x00
 	call	LCD_Write_Message
 
 ;	movlw	myTable_1	; output message to UART
@@ -202,19 +193,25 @@ rstart		; output message to LCD (leave out "\n")
 
      
      
-   
+ 
 
     
 	;***************** clear lcd *************************
-;			
-;button  movlw 0xFF
-;	movwf TRISD, ACCESS    ;port d is now an input
-;	movff PORTD, comp
-;	movlw 0x00
-;	cpfsgt comp, ACCESS
-;	goto	button
-;	call	clear_display
+			
+button  movlw 0xFF
+	movwf TRISD, ACCESS    ;port d is now an input
+	movff PORTD, comp
+	movlw 0x00
+	cpfsgt comp, ACCESS
+	goto	button
+	call	clear_display
+	
+	movlw  0xff
+	movwf   delay_count
+	call delay
 
+
+	goto start  
 	;***********************delay****************************
 	; a delay subroutine if you need one, times around loop in delay_count
 delay	decfsz	delay_count	; decrement until zero
@@ -222,7 +219,7 @@ delay	decfsz	delay_count	; decrement until zero
 	return
 
 	
-	goto start
+
 	
 	end 
 	
