@@ -1,7 +1,6 @@
 #include p18f87k22.inc
 
-    global  LCD_Setup, LCD_Write_Message
-
+    global  LCD_Setup, LCD_Write_Message, clear_display, LCD_Send_Byte_I, LCD_delay_x4us, LCD_Send_Byte_D		
 acs0    udata_acs   ; named variables in access ram
 LCD_cnt_l   res 1   ; reserve 1 byte for variable LCD_cnt_l
 LCD_cnt_h   res 1   ; reserve 1 byte for variable LCD_cnt_h
@@ -20,14 +19,26 @@ LCD_Setup
 	movwf	TRISB
 	movlw   .40
 	call	LCD_delay_ms	; wait 40ms for LCD to start up properly
-	movlw	b'00110000'	; Function set 4-bit
-	call	LCD_Send_Nib
-	movlw	.10		; wait 40us
+	movlw	b'00000010'	; Function set 4-bit LCD DISPLAy set to 4 bit mode but redundant 
+	call	LCD_Send_Nib	;does nothing to start with 
+	movlw	.10		; wait 40us		
 	call	LCD_delay_x4us
-	movlw	b'00101000'	; 2 line display 5x8 dot characters
+	movlw	b'00100000'	; setting new first address top line lcd display
 	call	LCD_Send_Byte_I
 	movlw	.10		; wait 40us
 	call	LCD_delay_x4us
+	movlw	b'00100000'	; setting new first address top line lcd display
+	call	LCD_Send_Byte_I 
+	
+	movlw	b'00101000'	; 2 line display 5x8 dot characters
+	call	LCD_Send_Byte_I
+	movlw	.10		; wait 40us
+	call	LCD_delay_x4us   
+;	call	LCD_delay_x4us
+;	movlw   b''
+;	call	LCD_Send_Byte_I
+;	movlw	.10		; wait 40us   
+	
 	movlw	b'00101000'	; repeat, 2 line display 5x8 dot characters
 	call	LCD_Send_Byte_I
 	movlw	.10		; wait 40us
@@ -47,12 +58,16 @@ LCD_Setup
 	return
 
 LCD_Write_Message	    ; Message stored at FSR2, length stored in W
-	movwf   LCD_counter
+;	movwf   LCD_counter
 LCD_Loop_message
 	movf    POSTINC2, W
 	call    LCD_Send_Byte_D
-	decfsz  LCD_counter
-	bra	LCD_Loop_message
+;	decfsz  LCD_counter
+;	movf    LCD_counter, W
+;	sublw   .16
+;	cpfslt  LCD_counter, ACCESS
+;	bra	LCD_Loop_message
+
 	return
 
 LCD_Send_Byte_I		    ; Transmits byte stored in W to instruction reg
@@ -62,12 +77,13 @@ LCD_Send_Byte_I		    ; Transmits byte stored in W to instruction reg
 	movwf   LATB	    ; output data bits to LCD
 	bcf	LATB, LCD_RS	; Instruction write clear RS bit
 	call    LCD_Enable  ; Pulse enable Bit 
-LCD_Send_Nib
 	movf	LCD_tmp,W   ; swap nibbles, now do low nibble
+LCD_Send_Nib
 	andlw   0x0f	    ; select just low nibble
 	movwf   LATB	    ; output data bits to LCD
 	bcf	LATB, LCD_RS    ; Instruction write clear RS bit
         call    LCD_Enable  ; Pulse enable Bit 
+
 	return
 
 LCD_Send_Byte_D		    ; Transmits byte stored in W to data reg
@@ -130,10 +146,21 @@ LCD_delay			; delay routine	4 instruction loop == 250ns
 	movlw 	0x00		; W=0
 lcdlp1	decf 	LCD_cnt_l,F	; no carry when 0x00 -> 0xff
 	subwfb 	LCD_cnt_h,F	; no carry when 0x00 -> 0xff
-	bc 	lcdlp1		; carry, then loop again
+	bc 	lcdlp1	
+	nop                     ; carry, then loop again
 	return			; carry reset so return
 
+	
+	
 
+clear_display
+	movlw	b'00000001'    ;clears display
+	call	LCD_Send_Byte_I ;sends whole word
+	movlw	.250		; wait 2ms
+	call	LCD_delay_ms
+	return 
+	
+	
     end
 
 
