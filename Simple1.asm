@@ -13,15 +13,18 @@ comp        res 1
 row_store   res 1
 col_store   res 1
 address     res 1
-character   res 1
 a0       res 1
 a1       res 1
 a        res 1
+lock     res 1    ;if 0 the safe is unlocked, if 1 the safe is locked
+code1	 res 1
+code2	 res 1
+code3	 res 1
+code4	 res 1
+checktostart res 1 
 
-	
-	
-	
-	
+
+		
 
 tables	udata	0x400    ; reserve data anywhere in RAM (here at 0x400)
 myArray res 0xff    ; reserve 128 bytes for message data
@@ -34,63 +37,171 @@ pdata	code    ; a section of programme memory for storing data
 	
 	
 	;******************data in ****************************	
-myTable 
-	data	    "DCBA#9630852*741\n"	; message, plus carriage return
-	constant    myTable_1 =.16	; length of data	
+;myTable 
+;	data	    "DCBA#9630852*741\n"	; message, plus carriage return
+;	constant    myTable_1 =.16	; length of data	
 
 main	code
 	; ******* Programme FLASH read Setup Code ***********************
 setup	bcf	EECON1, CFGS	; point to Flash program memory  
 	bsf	EECON1, EEPGD 	; access Flash program memory
-	call	UART_Setup	; setup UART
 	call	LCD_Setup	; setup LCD
 	goto	start
 	
-	;*****************keyboard ******************
-start  
+	;*****************keyboard set up******************
+	
+start	
  	banksel PADCFG1				; PADCFG1 is not in Access Bank!!
 enable	bsf PADCFG1, REPU, BANKED		; PortE pull-ups on
 	movlb 0x00				; set BSR back to Bank 0
 	
 	clrf  LATE
 	
-outin   movlw 0x0f				;reading the rows
+	
+	;*********************safe setup********************
+	
+locked? movlw  0x00
+	movwf  lock, ACCESS       ;making the safe unlocked to start NEED TO FIGURE OUT LOCK MECHANISM
+	
+myTable	 
+	data	    "Choose your pin\n"	; message, plus carriage return
+	constant    myTable_1 =.15	; length of data
+	
+	
+keycheck1
+	call keypad
+	movwf checktostart
+	movlw 0xff
+	cpfslt checktostart, 0
+	goto keycheck1
+	movff checktostart, code1
+release1
+	call keypad
+	movwf checktostart
+	movlw 0xff
+	cpfseq checktostart, 0
+	goto release1
+
+	
+keycheck2
+	call keypad
+	movwf checktostart
+	movlw 0xff
+	cpfslt checktostart, 0
+	goto keycheck2
+	movff checktostart, code2
+release2
+	call keypad
+	movwf checktostart
+	movlw 0xff
+	cpfseq checktostart, 0
+	goto release2
+	
+keycheck3
+	call keypad
+	movwf checktostart
+	movlw 0xff
+	cpfslt checktostart, 0
+	goto keycheck3
+	movff checktostart, code3
+release3
+	call keypad
+	movwf checktostart
+	movlw 0xff
+	cpfseq checktostart, 0
+	goto release3
+
+keycheck4
+	call keypad
+	movwf checktostart
+	movlw 0xff
+	cpfslt checktostart, 0
+	goto keycheck4
+	movff checktostart, code4
+release4
+	call keypad
+	movwf checktostart
+	movlw 0xff
+	cpfseq checktostart, 0
+	goto release4
+	
+	goto $
+	
+
+	
+	
+	
+;*******************keypad subroutine****************************	
+		
+
+keypad	
+outin   movlw 0x0f			;to read the rows 0x0f = 00001111
 	movwf TRISE, ACCESS	;inputs 0-3, outputs 4-7
-	
-	
-	movlw  0xff
-	movwf   delay_count
-	call delay
 	
 rowstore
 	movff PORTE, row_store	    ;stores row number 
-	
-inout  movlw 0xf0  	
-	movwf TRISE, ACCESS
-	
-	
-	movlw  0xff
-	movwf   delay_count
 	call delay
+	call delay
+inout   movlw 0xf0  	          ;to read th e columns 0xf0 = 1111000
+	movwf TRISE, ACCESS       ;outputs 0-3, inputs 4-7
+	call delay
+	call delay
+colstore		    
+	movff PORTE, col_store		;column number is stored
+	call delay 
+	call delay 
 	
-colstore
-	movff PORTE, col_store
+read    movf  row_store, 0	    ;moving row store to Wreg
+	iorwf col_store, 0	    ;OR ing col sotre and row store to get full address of button in 8 bits 
+				    ;e.g. 2 = second column, first row = 1011 0111
+
+	return
+
 	
-read    movf  row_store, 0
-	iorwf col_store, 0
-	movwf address
-	movlw 0x00
-	movwf TRISH, ACCESS
-	movff address, PORTH
+	;*****************comparison subroutine*************
+	
+compare movlw 0x77
+	cpfseq 	checktostart
+	goto two
+	goto   
+two	movlw 0xb7
+	cpfseq 	checktostart
+	goto three
+	return 
+three	movlw 0xd7
+	cpfseq 	checktostart
+	goto four
+	return 
+four	movlw 0x7b
+	cpfseq 	checktostart
+	goto five
+	return 
+five	movlw 0xbb
+	cpfseq 	checktostart
+	goto six
+	return 
+six	movlw 0xeb
+	cpfseq 	checktostart
+	goto seven
+	return 
+seven	movlw 0x7d
+	cpfseq 	checktostart
+	goto eight
+	return 
+eight	movlw 0xbd
+	cpfseq 	checktostart
+	goto nine
+	return 
+nine	movlw 0xdd
+	cpfseq 	checktostart
+	
+	return 
+	
+	
+	
 	
 	;**************put keyboard on to lcd converter ***********
    
-
- 
- 
- 
- 
- 
 
 rbitcheck 
 	movlw 0x03    
@@ -106,8 +217,6 @@ rbitcheck
 	btfss  row_store, 0x00
 	movwf  a0, ACCESS
 	
-	movlw  0xff
-	movwf   delay_count
 	call delay	
 
 
@@ -126,10 +235,6 @@ cbitcheck
 	movwf  a1, ACCESS
 	
 	
-	
-	
-	movlw  0xff
-	movwf   delay_count
 	call delay
 	
 
@@ -137,23 +242,15 @@ adder  movf  a1, 0
        addwf  a0, 0
     
        movwf  a 
-       
-	movlw  0xff
-	movwf   delay_count
+   
 	call delay	
 
 	
-;     movlw      b'11110000'
-;     movf      address
-;     lfsr	FSR2, 0
-      
-;     movlw      0x01
-;     call	LCD_Write_Message 
 	
 
 	
 	; **************loading data into table****************************************
-tableloa 	
+tableload 	
 
 	lfsr	FSR0, myArray	; Load FSR0 with address in RAM	
 	movlw	upper(myTable)	; address of data in PM
@@ -174,6 +271,8 @@ loop 	tblrd*+			; one byte from PM to TABLAT, increment TBLPRT
 	
 
 	;********************output to displays************************		
+
+	
 rstart		; output message to LCD (leave out "\n")
 	lfsr	FSR2, myArray
 	movf    a, 0
@@ -183,12 +282,8 @@ rstart		; output message to LCD (leave out "\n")
 	movlw   0x00
 	call	LCD_Write_Message
 
-;	movlw	myTable_1	; output message to UART
-;	lfsr	FSR2, myArray
-;	call	UART_Transmit_Message 
 	
-	movlw  0xff
-	movwf   delay_count
+
 	call delay
 
      
@@ -198,24 +293,27 @@ rstart		; output message to LCD (leave out "\n")
     
 	;***************** clear lcd *************************
 			
-button  movlw 0xFF
+LCDclear  
+	movlw 0xFF
 	movwf TRISD, ACCESS    ;port d is now an input
 	movff PORTD, comp
 	movlw 0x00
 	cpfsgt comp, ACCESS
-	goto	button
+	goto	LCDclear
 	call	clear_display
 	
-	movlw  0xff
-	movwf   delay_count
+	
 	call delay
 
-
 	goto start  
+	
+	
 	;***********************delay****************************
 	; a delay subroutine if you need one, times around loop in delay_count
-delay	decfsz	delay_count	; decrement until zero
-	bra delay
+delay	movlw  0x04
+	movwf   delay_count	
+delay1	decfsz	delay_count	; decrement until zero
+	bra delay1
 	return
 
 	
