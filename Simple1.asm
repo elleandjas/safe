@@ -6,33 +6,34 @@
 	
 
 	    ;**************reserving bytes in access ram**********************
-acs0	udata_acs   ; reserve data space in access ram
-counter	    res 1   ; reserve one byte for a counter variable
-delay_count res 1   ; reserve one byte for counter in the delay routine
-comp        res 1
-row_store   res 1
-col_store   res 1
-address     res 1
-a0       res 1
-a1       res 1
-a        res 1
-lock     res 1    ;if 0 the safe is unlocked, if 1 the safe is locked
-code1	 res 1
-code2	 res 1
-code3	 res 1
-code4	 res 1
-checktostart res 1 
+acs0		udata_acs   ; reserve data space in access ram
+counter		res 1	    ; reserve one byte for a counter variable
+delay_count	res 1	    ; reserve one byte for counter in the delay routine
+comp	    	res 1
+row_store	res 1	    ; row code for keypad eg 0111 is the first row 
+col_store	res 1	    ; column code for keypad eg 0111 is the first column
+address		res 1
+a0		res 1
+a1		res 1
+a		res 1
+lock		res 1	    ;if 0 the safe is unlocked, if 1 the safe is locked
+code1		res 1
+code2		res 1
+code3		res 1
+code4		res 1
+checktostart	res 1	    ;this is the value read by the keypad function 
+flag		res 1	    ; to check whether the value is one of the keys or half stored rows/cols
 
 
 		
 
-tables	udata	0x400    ; reserve data anywhere in RAM (here at 0x400)
-myArray res 0xff    ; reserve 128 bytes for message data
-
-rst	code	0    ; reset vector
+tables	udata	0x400	    ; reserve data anywhere in RAM (here at 0x400)
+myArray res 0xff	    ; reserve 128 bytes for message data
+ 
+rst	code	0	    ; reset vector
 	goto	setup
 
-pdata	code    ; a section of programme memory for storing data
+pdata	code		    ; a section of programme memory for storing data
 
 	
 	
@@ -67,60 +68,70 @@ myTable
 	data	    "Choose your pin\n"	; message, plus carriage return
 	constant    myTable_1 =.15	; length of data
 	
+	;********************storing pin number***********************;
 	
-keycheck1
+keycheck1    ;checking if there is a value other than ff stored in checktostart
 	call keypad
-	movwf checktostart
 	movlw 0xff
 	cpfslt checktostart, 0
 	goto keycheck1
-	movff checktostart, code1
-release1
+	call compare 
+	movlw 0x00
+	cpfseq flag, 0
+	goto keycheck1 
+	movff checktostart, code1 ;first key is stored in code 1 
+	
+release1      ;checking if the buttons have been released 
 	call keypad
-	movwf checktostart
 	movlw 0xff
 	cpfseq checktostart, 0
 	goto release1
 
 	
-keycheck2
+keycheck2     ;checking if there is a value other than ff stored in checktostart
 	call keypad
-	movwf checktostart
 	movlw 0xff
 	cpfslt checktostart, 0
 	goto keycheck2
+	call compare 
+	movlw 0x00
+	cpfseq flag, 0
+	goto keycheck2 
 	movff checktostart, code2
 release2
 	call keypad
-	movwf checktostart
 	movlw 0xff
 	cpfseq checktostart, 0
 	goto release2
 	
-keycheck3
+keycheck3     ;checking if there is a value other than ff stored in checktostart
 	call keypad
-	movwf checktostart
 	movlw 0xff
 	cpfslt checktostart, 0
 	goto keycheck3
+	call compare 
+	movlw 0x00
+	cpfseq flag, 0
+	goto keycheck3
 	movff checktostart, code3
-release3
+release3     
 	call keypad
-	movwf checktostart
 	movlw 0xff
 	cpfseq checktostart, 0
 	goto release3
 
-keycheck4
+keycheck4   ;checking if there is a value other than ff stored in checktostart
 	call keypad
-	movwf checktostart
 	movlw 0xff
 	cpfslt checktostart, 0
 	goto keycheck4
+	call compare 
+	movlw 0x00
+	cpfseq flag, 0
+	goto keycheck4 
 	movff checktostart, code4
 release4
 	call keypad
-	movwf checktostart
 	movlw 0xff
 	cpfseq checktostart, 0
 	goto release4
@@ -137,66 +148,68 @@ release4
 keypad	
 outin   movlw 0x0f			;to read the rows 0x0f = 00001111
 	movwf TRISE, ACCESS	;inputs 0-3, outputs 4-7
-	
+	call delay
 rowstore
 	movff PORTE, row_store	    ;stores row number 
-	call delay
-	call delay
+	
 inout   movlw 0xf0  	          ;to read th e columns 0xf0 = 1111000
 	movwf TRISE, ACCESS       ;outputs 0-3, inputs 4-7
-	call delay
-	call delay
+	call delay 
 colstore		    
 	movff PORTE, col_store		;column number is stored
-	call delay 
 	call delay 
 	
 read    movf  row_store, 0	    ;moving row store to Wreg
 	iorwf col_store, 0	    ;OR ing col sotre and row store to get full address of button in 8 bits 
-				    ;e.g. 2 = second column, first row = 1011 0111
-
+	movwf checktostart	;storing w in check to start		    ;e.g. 2 = second column, first row = 1011 0111
+	call delay
+				    
 	return
 
 	
 	;*****************comparison subroutine*************
 	
-compare movlw 0x77
-	cpfseq 	checktostart
+compare clrf flag		;this is useful for when the button is pressed half way through a keypad
+zero    movlw 0xbe
+	cpfseq 	checktostart 
 	goto two
-	goto   
+	return
+one	movlw 0x77		;and the row and columns arent both stored properly. There are 
+	cpfseq 	checktostart    ;
+	goto two
+	return
 two	movlw 0xb7
 	cpfseq 	checktostart
 	goto three
-	return 
-three	movlw 0xd7
+	return
+three	movlw 0xd7 
 	cpfseq 	checktostart
 	goto four
-	return 
+	return
 four	movlw 0x7b
 	cpfseq 	checktostart
 	goto five
-	return 
+	return
 five	movlw 0xbb
 	cpfseq 	checktostart
 	goto six
-	return 
+	return
 six	movlw 0xeb
 	cpfseq 	checktostart
 	goto seven
-	return 
+	return
 seven	movlw 0x7d
 	cpfseq 	checktostart
 	goto eight
-	return 
+	return
 eight	movlw 0xbd
 	cpfseq 	checktostart
 	goto nine
-	return 
+	return
 nine	movlw 0xdd
 	cpfseq 	checktostart
-	
-	return 
-	
+	setf flag
+	return
 	
 	
 	
@@ -277,13 +290,8 @@ rstart		; output message to LCD (leave out "\n")
 	lfsr	FSR2, myArray
 	movf    a, 0
 	addwf   PLUSW2, 0
-	
-	
 	movlw   0x00
 	call	LCD_Write_Message
-
-	
-
 	call delay
 
      
@@ -310,7 +318,7 @@ LCDclear
 	
 	;***********************delay****************************
 	; a delay subroutine if you need one, times around loop in delay_count
-delay	movlw  0x04
+delay	movlw  0xff
 	movwf   delay_count	
 delay1	decfsz	delay_count	; decrement until zero
 	bra delay1
