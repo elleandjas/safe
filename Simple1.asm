@@ -4,8 +4,7 @@
 	    extern  LCD_Setup, LCD_Write_Message, clear_display, LCD_Send_Byte_I, LCD_delay_x4us, LCD_Send_Byte_D	 	   ; external LCD subroutines
 	
 	
-
-	    ;**************reserving bytes in access ram**********************
+;**************reserving bytes in access ram**********************
 acs0		udata_acs   ; reserve data space in access ram
 counter		res 1	    ; reserve one byte for a counter variable
 delay_count	res 1	    ; reserve one byte for counter in the delay routine
@@ -37,7 +36,7 @@ pdata	code		    ; a section of programme memory for storing data
 
 	
 	
-	;******************data in ****************************	
+;******************data in ****************************	
 ;myTable 
 ;	data	    "DCBA#9630852*741\n"	; message, plus carriage return
 ;	constant    myTable_1 =.16	; length of data	
@@ -49,8 +48,8 @@ setup	bcf	EECON1, CFGS	; point to Flash program memory
 	call	LCD_Setup	; setup LCD
 	goto	start
 	
-	;*****************keyboard set up******************
-	
+;*****************keyboard set up******************
+
 start	
  	banksel PADCFG1				; PADCFG1 is not in Access Bank!!
 enable	bsf PADCFG1, REPU, BANKED		; PortE pull-ups on
@@ -59,7 +58,7 @@ enable	bsf PADCFG1, REPU, BANKED		; PortE pull-ups on
 	clrf  LATE
 	
 	
-	;*********************safe setup********************
+;*********************safe setup********************
 	
 locked? movlw  0x00
 	movwf  lock, ACCESS       ;making the safe unlocked to start NEED TO FIGURE OUT LOCK MECHANISM
@@ -68,30 +67,21 @@ myTable
 	data	    "Choose your pin\n"	; message, plus carriage return
 	constant    myTable_1 =.15	; length of data
 	
-	;********************storing pin number***********************;
+;********************storing pin number***********************;
 	
 keycheck1    ;checking if there is a value other than ff stored in checktostart
-	call keypad
-	movlw 0xff
-	cpfslt checktostart, 0
+	call keys
 	goto keycheck1
 	call compare 
 	movlw 0x00
 	cpfseq flag, 0
 	goto keycheck1 
-	movff checktostart, code1 ;first key is stored in code 1 
-	
+	movff checktostart, code1 ;first key is stored in code 1 	
 release1      ;checking if the buttons have been released 
-	call keypad
-	movlw 0xff
-	cpfseq checktostart, 0
+	call releases
 	goto release1
-
-	
 keycheck2     ;checking if there is a value other than ff stored in checktostart
-	call keypad
-	movlw 0xff
-	cpfslt checktostart, 0
+	call keys
 	goto keycheck2
 	call compare 
 	movlw 0x00
@@ -99,15 +89,10 @@ keycheck2     ;checking if there is a value other than ff stored in checktostart
 	goto keycheck2 
 	movff checktostart, code2
 release2
-	call keypad
-	movlw 0xff
-	cpfseq checktostart, 0
-	goto release2
-	
+	call releases
+	goto release2	
 keycheck3     ;checking if there is a value other than ff stored in checktostart
-	call keypad
-	movlw 0xff
-	cpfslt checktostart, 0
+	call keys
 	goto keycheck3
 	call compare 
 	movlw 0x00
@@ -115,15 +100,10 @@ keycheck3     ;checking if there is a value other than ff stored in checktostart
 	goto keycheck3
 	movff checktostart, code3
 release3     
-	call keypad
-	movlw 0xff
-	cpfseq checktostart, 0
+	call releases
 	goto release3
-
 keycheck4   ;checking if there is a value other than ff stored in checktostart
-	call keypad
-	movlw 0xff
-	cpfslt checktostart, 0
+	call keys
 	goto keycheck4
 	call compare 
 	movlw 0x00
@@ -131,10 +111,21 @@ keycheck4   ;checking if there is a value other than ff stored in checktostart
 	goto keycheck4 
 	movff checktostart, code4
 release4
+	call releases
+	goto release4
+
+;*************checking stored************************;	
+keys    call keypad
+	movlw 0xff
+	cpfslt checktostart, 0
+	return 
+	
+releases 
 	call keypad
 	movlw 0xff
 	cpfseq checktostart, 0
-	goto release4
+	return 
+
 	
 	goto $
 	
@@ -142,7 +133,7 @@ release4
 	
 	
 	
-;*******************keypad subroutine****************************	
+;*******************keypad read****************************	
 		
 
 keypad	
@@ -167,7 +158,7 @@ read    movf  row_store, 0	    ;moving row store to Wreg
 	return
 
 	
-	;*****************comparison subroutine*************
+;*****************comparison subroutine*************
 	
 compare clrf flag		;this is useful for when the button is pressed half way through a keypad
 zero    movlw 0xbe
@@ -211,9 +202,85 @@ nine	movlw 0xdd
 	setf flag
 	return
 	
+;***************checking entered pin with stored pin**************
+	
+    ;in code1, code2, code3 and code4 is the 1 byte address of each pin number
+    ;to start entering the pin to unlock press B button, so first check if button b is pressed
+check	call   keypad
+	movlw  0xeb		    ;eb is address of button B
+	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
+	goto   check		    ;loops back to checking if B has been pressed 
+b1check				    ;checking if there is a value other than ff stored in checktostart
+        call   keys
+	goto   b1check
+	call compare 
+	movlw 0x00
+	cpfseq flag, 0
+	goto b1check                ;looping back to the check for the first button being poressed  
+	movf   checktostart, 0      ;a button has been pressed, comapre to code1, the first number in the stored password 
+	cpfseq code1		    ;checking if button pressed is the same as stored, skip if equal to 
+	incf   wrongflag, 1	    ;flagged if entered password is not equal to stored, but will still compare the other numbers for real life effect
+
+r1check	call releases
+	goto r1check
+
+b2check				    ;check number 2!
+        call   keys
+	goto   b1check
+	call compare 
+	movlw 0x00
+	cpfseq flag, 0
+	goto b2check                
+	movf   checktostart, 0    
+	cpfseq code2		    
+	incf   wrongflag, 1	   
+
+r2check	call releases
+	goto r1check
+
+b3check				    ;check number 3!
+        call   keys
+	goto   b1check
+	call compare 
+	movlw 0x00
+	cpfseq flag, 0
+	goto b3check                 
+	movf   checktostart, 0      
+	cpfseq code3		    
+	incf   wrongflag, 1	    
+
+r3check	call releases
+	goto r3check
+b4check				    ;check number 4!
+        call   keys
+	goto   b1check
+	call compare 
+	movlw 0x00
+	cpfseq flag, 0
+	goto b4check                 
+	movf   checktostart, 0    
+	cpfseq code4		    
+	incf   wrongflag, 1	    
+
+r4check	call releases
+	goto r4check
 	
 	
-	;**************put keyboard on to lcd converter ***********
+	
+;now either unlock or display incorrect password message depending on conents of wrongflag
+	movlw, 0x00
+	cpfsgt wrongflag       ;checks if wrong pin has been flagged, skips if more than 0  
+	clrf   lock		;UNLOCKS THE SAFE!!!!!
+				; displays 'incorrect password' on the LCD
+	
+	
+	
+	
+	
+	
+	
+	
+;**************put keyboard on to lcd converter ***********
    
 
 rbitcheck 
@@ -262,7 +329,7 @@ adder  movf  a1, 0
 	
 
 	
-	; **************loading data into table****************************************
+;**************loading data into table****************************************
 tableload 	
 
 	lfsr	FSR0, myArray	; Load FSR0 with address in RAM	
@@ -283,7 +350,7 @@ loop 	tblrd*+			; one byte from PM to TABLAT, increment TBLPRT
 	
 	
 
-	;********************output to displays************************		
+;********************output to displays************************		
 
 	
 rstart		; output message to LCD (leave out "\n")
@@ -299,7 +366,7 @@ rstart		; output message to LCD (leave out "\n")
  
 
     
-	;***************** clear lcd *************************
+;***************** clear lcd *************************
 			
 LCDclear  
 	movlw 0xFF
@@ -316,8 +383,8 @@ LCDclear
 	goto start  
 	
 	
-	;***********************delay****************************
-	; a delay subroutine if you need one, times around loop in delay_count
+;***********************delay****************************
+; a delay subroutine if you need one, times around loop in delay_count
 delay	movlw  0xff
 	movwf   delay_count	
 delay1	decfsz	delay_count	; decrement until zero
