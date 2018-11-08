@@ -66,40 +66,61 @@ locked? movlw  0x00
 myTable	 
 	data	    "Choose your pin\n"	; message, plus carriage return
 	constant    myTable_1 =.15	; length of data
+	 
+	 
+	
+	clrf   code1
+	clrf   code2
+	clrf   code3
+	clrf   code4
+	clrf   flag
+	clrf   wrongflag 
+	
+	call store     ;LCD message telling you to enter the initial pin 
 	
 ;********************which command to go to*******************;
 	
 checkb	call   keypad
 	movlw  0xeb		    ;eb is address of button B
-	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
-	nop		            
-        goto   unlockp
+	cpfseq checktostart	    
+	goto   checkc
+	clrf   wrongflag
+        call   unlockp
+	movlw  0x00
+	cpfsgt wrongflag       ;checks if wrong pin has been flagged, skips if more than 0  
+	clrf   lock		;UNLOCKS THE SAFE!!!!!
+				; displays 'incorrect password' on the LC
 checkc	call   keypad
 	movlw  0xed		    ;ed is address of button C
-	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
-	nop		    	    
-        call   locker
+	cpfseq checktostart	   
+	goto   check#	    	    
+        call   locker		    ;lock the safe again 
 ;checkd	call   keypad
-;	movlw  0xee		    ;eb is address of buttonD
-;	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
+;	movlw  0xee		    ;ee is address of buttonD
+;	cpfseq checktostart	   
 ;	nop
 ;	goto   setvoice		    ;calls set voice pasd=sword subroutine 
 ;checks	call   keypad
-;	movlw  0x7e		    ;eb is address of button *
-;	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
+;	movlw  0x7e		    ;7e is address of button *
+;	cpfseq checktostart	    
 ;	nop
 ;	goto   unlockv		    ;calls the voce unlocking subroutine 
 check#	call   keypad
-	movlw  0xeb		    ;eb is address of button #
-	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
+	movlw  0xde		    ;de is address of button #
+	cpfseq checktostart	   
 	goto   checkb
-	goto   store		    ;calls pin store subroutine 
-	goto   checkb		    ;loops back to checking for commend buttons
+	call   delay
+	call   unlockp		    ;if correct pin was entered the wrongflag = 0
+	movlw  0x00
+	cpfsgt wrongflag 	
+	call   store		    ;calls pin store subroutine (need message saying store)
+	goto   checkb		    ;loops back to checking for command buttons
         
 
-	
-;********************storing pin number***********************;
+;###################### storing pin number #################################
 store	
+      ;checking if the buttons have been released 
+	call release
 keycheck1    ;checking if there is a value other than ff stored in checktostart
 	call keypad
 	movlw 0xff
@@ -111,10 +132,7 @@ keycheck1    ;checking if there is a value other than ff stored in checktostart
 	goto keycheck1 
 	movff checktostart, code1 ;first key is stored in code 1 	
 release1      ;checking if the buttons have been released 
-	call keypad
-	movlw 0xff
-	cpfseq checktostart, 0
-	goto release1
+	call release
 keycheck2     ;checking if there is a value other than ff stored in checktostart
 	call keypad
 	movlw 0xff
@@ -126,10 +144,7 @@ keycheck2     ;checking if there is a value other than ff stored in checktostart
 	goto keycheck2 
 	movff checktostart, code2
 release2
-	call keypad
-	movlw 0xff
-	cpfseq checktostart, 0
-	goto release2	
+	call release	
 keycheck3     ;checking if there is a value other than ff stored in checktostart
 	call keypad
 	movlw 0xff
@@ -141,10 +156,7 @@ keycheck3     ;checking if there is a value other than ff stored in checktostart
 	goto keycheck3
 	movff checktostart, code3
 release3     
-	call keypad
-	movlw 0xff
-	cpfseq checktostart, 0
-	goto release3
+	call release
 keycheck4   ;checking if there is a value other than ff stored in checktostart
 	call keypad
 	movlw 0xff
@@ -155,8 +167,86 @@ keycheck4   ;checking if there is a value other than ff stored in checktostart
 	cpfseq flag, 0
 	goto keycheck4 
 	movff checktostart, code4
+release4     
+	call  release	
 	return
+
+;CCCCCCCCCCCCCCCCCC RE-LOCK SAFE CCCCCCCCCCCCCCCCCCCCCCCCC
 	
+locker
+	call release
+	setf lock
+	return 
+
+;BBBBBBBBBBBBBBBBBB UNLOCK WITH PIN ENTRY BBBBBBBBBBBBBBBBBBBBB
+	
+    ;in code1, code2, code3 and code4 is the 1 byte address of each pin number
+    ;to start entering the pin to unlock press B button, so first check if button b is pressed
+
+unlockp
+        call	release
+        call	delay
+b1check				    ;checking if there is a value other than ff stored in checktostart
+        call	keypad
+	movlw	0xff
+	cpfslt	checktostart, 0
+	goto	b1check
+	call	compare 
+	movlw	0x00
+	cpfseq	flag, 0
+	goto	b1check                ;looping back to the check for the first button being poressed  
+	movf	checktostart, 0      ;a button has been pressed, comapre to code1, the first number in the stored password 
+	cpfseq	code1		    ;checking if button pressed is the same as stored, skip if equal to 
+	incf	wrongflag, 1, 0	    ;flagged if entered password is not equal to stored, but will still compare the other numbers for real life effect
+r1check	call	release
+	nop
+b2check				    ;check number 2
+	call	keypad
+	movlw	0xff
+	cpfslt	checktostart, 0
+	goto	b2check
+	call	compare 
+	movlw	0x00
+	cpfseq	flag, 0
+	goto	b2check                
+	movf	checktostart, 0    
+	cpfseq	code2		    
+	incf	wrongflag, 1, 0	   
+	nop
+r2check	call	release
+	nop
+b3check				    ;check number 3!
+        call	keypad
+	movlw	0xff
+	cpfslt	checktostart, 0
+	goto	b3check
+	call	compare 
+	movlw	0x00
+	cpfseq	flag, 0
+	goto	b3check                 
+	movf	checktostart, 0      
+	cpfseq	code3		    
+	incf	wrongflag, 1, 0	    
+	nop
+r3check	call    release
+	
+b4check	nop			    ;check number 4!
+	call	keypad
+	movlw	0xff
+	cpfslt	checktostart, 0
+	goto	b4check
+	call	compare 
+	movlw	0x00
+	cpfseq	flag, 0
+	goto	b4check                 
+	movf	checktostart, 0    
+	cpfseq	code4		    
+	incf	wrongflag, 1, 0	    
+	nop
+r4check	call	release
+	
+	return
+
 ;*******************keypad read****************************	
 		
 
@@ -184,138 +274,56 @@ read    movf  row_store, 0	    ;moving row store to Wreg
 	
 ;*****************comparison subroutine*************
 	
-compare clrf flag		;this is useful for when the button is pressed half way through a keypad
-zero    movlw 0xbe
+compare clrf	flag		;this is useful for when the button is pressed half way through a keypad
+zero    movlw	0xbe
 	cpfseq 	checktostart 
-	goto two
+	goto	one
 	return
-one	movlw 0x77		;and the row and columns arent both stored properly. There are 
+one	movlw	0x77		;and the row and columns arent both stored properly. There are 
 	cpfseq 	checktostart    ;
-	goto two
+	goto	two
 	return
-two	movlw 0xb7
+two	movlw	0xb7
 	cpfseq 	checktostart
-	goto three
+	goto	three
 	return
-three	movlw 0xd7 
+three	movlw	0xd7 
 	cpfseq 	checktostart
-	goto four
+	goto	four
 	return
-four	movlw 0x7b
+four	movlw	0x7b
 	cpfseq 	checktostart
-	goto five
+	goto	five
 	return
-five	movlw 0xbb
+five	movlw	0xbb
 	cpfseq 	checktostart
-	goto six
+	goto	six
 	return
-six	movlw 0xeb
+six	movlw	0xeb
 	cpfseq 	checktostart
-	goto seven
+	goto	seven
 	return
-seven	movlw 0x7d
+seven	movlw	0x7d
 	cpfseq 	checktostart
-	goto eight
+	goto	eight
 	return
-eight	movlw 0xbd
-	cpfseq 	checktostart
-	goto nine
+eight	movlw	0xbd
+	cpfseq	checktostart
+	goto	nine
 	return
-nine	movlw 0xdd
+nine	movlw	0xdd
 	cpfseq 	checktostart
-	setf flag
+	setf	flag
 	return
 	
-;***************checking entered pin with stored pin**************
+;*******************release from command button****************; 	
 	
-    ;in code1, code2, code3 and code4 is the 1 byte address of each pin number
-    ;to start entering the pin to unlock press B button, so first check if button b is pressed
-
-unlockp
-	clrf   wrongflag
-b1check				    ;checking if there is a value other than ff stored in checktostart
-        call keypad
-	movlw 0xff
-	cpfslt checktostart, 0
-	goto   b1check
-	call compare 
-	movlw 0x00
-	cpfseq flag, 0
-	goto b1check                ;looping back to the check for the first button being poressed  
-	movf   checktostart, 0      ;a button has been pressed, comapre to code1, the first number in the stored password 
-	cpfseq code1		    ;checking if button pressed is the same as stored, skip if equal to 
-	incf   wrongflag, 1	    ;flagged if entered password is not equal to stored, but will still compare the other numbers for real life effect
-
-r1check	call keypad
-	movlw 0xff
-	cpfseq checktostart, 0
-	goto r1check
-
-b2check				    ;check number 2!
-        call keypad
-	movlw 0xff
-	cpfslt checktostart, 0
-	goto   b1check
-	call compare 
-	movlw 0x00
-	cpfseq flag, 0
-	goto b2check                
-	movf   checktostart, 0    
-	cpfseq code2		    
-	incf   wrongflag, 1	   
-
-r2check	call keypad
-	movlw 0xff
-	cpfseq checktostart, 0
-	goto r1check
-
-b3check				    ;check number 3!
-        call keypad
-	movlw 0xff
-	cpfslt checktostart, 0
-	goto   b1check
-	call compare 
-	movlw 0x00
-	cpfseq flag, 0
-	goto b3check                 
-	movf   checktostart, 0      
-	cpfseq code3		    
-	incf   wrongflag, 1	    
-
-r3check	call keypad
-	movlw 0xff
-	cpfseq checktostart, 0
-	goto r3check
-b4check				    ;check number 4!
+release      ;checking if the buttons have been released 
 	call keypad
 	movlw 0xff
-	cpfslt checktostart, 0
-	goto   b1check
-	call compare 
-	movlw 0x00
-	cpfseq flag, 0
-	goto b4check                 
-	movf   checktostart, 0    
-	cpfseq code4		    
-	incf   wrongflag, 1	    
-
-r4check	call keypad
-	movlw 0xff
 	cpfseq checktostart, 0
-	goto r4check
-	
-	
-	
-;now either unlock or display incorrect password message depending on conents of wrongflag
-	movlw  0x00
-	cpfsgt wrongflag       ;checks if wrong pin has been flagged, skips if more than 0  
-	clrf   lock		;UNLOCKS THE SAFE!!!!!
-	nop 			; displays 'incorrect password' on the LCD
-	
-	return
-	
-	
-	
+	goto release
+	return 
 	
 	
 	
@@ -323,38 +331,38 @@ r4check	call keypad
    
 
 rbitcheck 
-	movlw 0x03    
-	btfss  row_store, 0x03
-	movwf  a0, ACCESS
-	movlw 0x02    
-	btfss  row_store, 0x02
-	movwf  a0, ACCESS
-	movlw 0x01  
-	btfss  row_store, 0x01
-	movwf  a0, ACCESS
-	movlw 0x00  
-	btfss  row_store, 0x00
-	movwf  a0, ACCESS
+	movlw	0x03    
+	btfss	row_store, 0x03
+	movwf	a0, ACCESS
+	movlw	0x02    
+	btfss	row_store, 0x02
+	movwf	a0, ACCESS
+	movlw	0x01  
+	btfss	row_store, 0x01
+	movwf	a0, ACCESS
+	movlw	0x00  
+	btfss	row_store, 0x00
+	movwf	a0, ACCESS
 	
-	call delay	
+	call	delay	
 
 
 cbitcheck 
-	movlw 0x03*4    
-	btfss  col_store, 0x07
-	movwf  a1, ACCESS
-	movlw 0x02*4    
-	btfss  col_store, 0x06
-	movwf  a1, ACCESS
-	movlw 0x01*4    
-	btfss  col_store, 0x05
-	movwf  a1, ACCESS
-	movlw 0x00    
-	btfss  col_store, 0x04
-	movwf  a1, ACCESS
+	movlw	0x03*4    
+	btfss	col_store, 0x07
+	movwf	a1, ACCESS
+	movlw	0x02*4    
+	btfss	col_store, 0x06
+	movwf	a1, ACCESS
+	movlw	0x01*4    
+	btfss	col_store, 0x05
+	movwf	a1, ACCESS
+	movlw	0x00    
+	btfss	col_store, 0x04
+	movwf	a1, ACCESS
 	
 	
-	call delay
+	call	delay
 	
 
 adder  movf  a1, 0
@@ -362,7 +370,7 @@ adder  movf  a1, 0
     
        movwf  a 
    
-	call delay	
+    call delay	
 
 	
 	
@@ -424,14 +432,11 @@ LCDclear
 	
 ;***********************delay****************************
 ; a delay subroutine if you need one, times around loop in delay_count
-delay	movlw  0xff
+delay	movlw   0xaa 
 	movwf   delay_count	
 delay1	decfsz	delay_count	; decrement until zero
-	bra delay1
+	bra	delay1
 	return
 
-	
-
-	
 	end 
 	
