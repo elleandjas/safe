@@ -22,7 +22,7 @@ code3		res 1
 code4		res 1
 checktostart	res 1	    ;this is the value read by the keypad function 
 flag		res 1	    ; to check whether the value is one of the keys or half stored rows/cols
-
+wrongflag       res 1
 
 		
 
@@ -79,26 +79,31 @@ checkc	call   keypad
 	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
 	nop		    	    
         call   locker
-checkd	call   keypad
-	movlw  0xee		    ;eb is address of buttonD
-	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
-	nop
-	goto   setvoice		    ;loops back to checking if B has been pressed 
-checks	call   keypad
-	movlw  0x7e		    ;eb is address of button *
-	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
-	goto   unlockv		    ;loops back to checking if B has been pressed 
-        clrf   wrongflag
+;checkd	call   keypad
+;	movlw  0xee		    ;eb is address of buttonD
+;	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
+;	nop
+;	goto   setvoice		    ;calls set voice pasd=sword subroutine 
+;checks	call   keypad
+;	movlw  0x7e		    ;eb is address of button *
+;	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
+;	nop
+;	goto   unlockv		    ;calls the voce unlocking subroutine 
 check#	call   keypad
 	movlw  0xeb		    ;eb is address of button #
 	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
-	goto   check		    ;loops back to checking if B has been pressed 
+	goto   checkb
+	goto   store		    ;calls pin store subroutine 
+	goto   checkb		    ;loops back to checking for commend buttons
         
+
 	
 ;********************storing pin number***********************;
 store	
 keycheck1    ;checking if there is a value other than ff stored in checktostart
-	call keys
+	call keypad
+	movlw 0xff
+	cpfslt checktostart, 0
 	goto keycheck1
 	call compare 
 	movlw 0x00
@@ -106,10 +111,14 @@ keycheck1    ;checking if there is a value other than ff stored in checktostart
 	goto keycheck1 
 	movff checktostart, code1 ;first key is stored in code 1 	
 release1      ;checking if the buttons have been released 
-	call releases
+	call keypad
+	movlw 0xff
+	cpfseq checktostart, 0
 	goto release1
 keycheck2     ;checking if there is a value other than ff stored in checktostart
-	call keys
+	call keypad
+	movlw 0xff
+	cpfslt checktostart, 0
 	goto keycheck2
 	call compare 
 	movlw 0x00
@@ -117,10 +126,14 @@ keycheck2     ;checking if there is a value other than ff stored in checktostart
 	goto keycheck2 
 	movff checktostart, code2
 release2
-	call releases
+	call keypad
+	movlw 0xff
+	cpfseq checktostart, 0
 	goto release2	
 keycheck3     ;checking if there is a value other than ff stored in checktostart
-	call keys
+	call keypad
+	movlw 0xff
+	cpfslt checktostart, 0
 	goto keycheck3
 	call compare 
 	movlw 0x00
@@ -128,38 +141,21 @@ keycheck3     ;checking if there is a value other than ff stored in checktostart
 	goto keycheck3
 	movff checktostart, code3
 release3     
-	call releases
+	call keypad
+	movlw 0xff
+	cpfseq checktostart, 0
 	goto release3
 keycheck4   ;checking if there is a value other than ff stored in checktostart
-	call keys
+	call keypad
+	movlw 0xff
+	cpfslt checktostart, 0
 	goto keycheck4
 	call compare 
 	movlw 0x00
 	cpfseq flag, 0
 	goto keycheck4 
 	movff checktostart, code4
-release4
-	call releases
-	goto release4
-
-;*************checking stored************************;	
-keys    call keypad
-	movlw 0xff
-	cpfslt checktostart, 0
-	return 
-	
-releases 
-	call keypad
-	movlw 0xff
-	cpfseq checktostart, 0
-	return 
-
-	
-	goto $
-	
-
-	
-	
+	return
 	
 ;*******************keypad read****************************	
 		
@@ -238,7 +234,9 @@ nine	movlw 0xdd
 unlockp
 	clrf   wrongflag
 b1check				    ;checking if there is a value other than ff stored in checktostart
-        call   keys
+        call keypad
+	movlw 0xff
+	cpfslt checktostart, 0
 	goto   b1check
 	call compare 
 	movlw 0x00
@@ -248,11 +246,15 @@ b1check				    ;checking if there is a value other than ff stored in checktostar
 	cpfseq code1		    ;checking if button pressed is the same as stored, skip if equal to 
 	incf   wrongflag, 1	    ;flagged if entered password is not equal to stored, but will still compare the other numbers for real life effect
 
-r1check	call releases
+r1check	call keypad
+	movlw 0xff
+	cpfseq checktostart, 0
 	goto r1check
 
 b2check				    ;check number 2!
-        call   keys
+        call keypad
+	movlw 0xff
+	cpfslt checktostart, 0
 	goto   b1check
 	call compare 
 	movlw 0x00
@@ -262,11 +264,15 @@ b2check				    ;check number 2!
 	cpfseq code2		    
 	incf   wrongflag, 1	   
 
-r2check	call releases
+r2check	call keypad
+	movlw 0xff
+	cpfseq checktostart, 0
 	goto r1check
 
 b3check				    ;check number 3!
-        call   keys
+        call keypad
+	movlw 0xff
+	cpfslt checktostart, 0
 	goto   b1check
 	call compare 
 	movlw 0x00
@@ -276,10 +282,14 @@ b3check				    ;check number 3!
 	cpfseq code3		    
 	incf   wrongflag, 1	    
 
-r3check	call releases
+r3check	call keypad
+	movlw 0xff
+	cpfseq checktostart, 0
 	goto r3check
 b4check				    ;check number 4!
-        call   keys
+	call keypad
+	movlw 0xff
+	cpfslt checktostart, 0
 	goto   b1check
 	call compare 
 	movlw 0x00
@@ -289,16 +299,18 @@ b4check				    ;check number 4!
 	cpfseq code4		    
 	incf   wrongflag, 1	    
 
-r4check	call releases
+r4check	call keypad
+	movlw 0xff
+	cpfseq checktostart, 0
 	goto r4check
 	
 	
 	
 ;now either unlock or display incorrect password message depending on conents of wrongflag
-	movlw, 0x00
+	movlw  0x00
 	cpfsgt wrongflag       ;checks if wrong pin has been flagged, skips if more than 0  
 	clrf   lock		;UNLOCKS THE SAFE!!!!!
-	goto   check 			; displays 'incorrect password' on the LCD
+	nop 			; displays 'incorrect password' on the LCD
 	
 	return
 	
