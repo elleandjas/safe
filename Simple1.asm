@@ -67,8 +67,36 @@ myTable
 	data	    "Choose your pin\n"	; message, plus carriage return
 	constant    myTable_1 =.15	; length of data
 	
-;********************storing pin number***********************;
+;********************which command to go to*******************;
 	
+checkb	call   keypad
+	movlw  0xeb		    ;eb is address of button B
+	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
+	nop		            
+        goto   unlockp
+checkc	call   keypad
+	movlw  0xed		    ;ed is address of button C
+	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
+	nop		    	    
+        call   locker
+checkd	call   keypad
+	movlw  0xee		    ;eb is address of buttonD
+	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
+	nop
+	goto   setvoice		    ;loops back to checking if B has been pressed 
+checks	call   keypad
+	movlw  0x7e		    ;eb is address of button *
+	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
+	goto   unlockv		    ;loops back to checking if B has been pressed 
+        clrf   wrongflag
+check#	call   keypad
+	movlw  0xeb		    ;eb is address of button #
+	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
+	goto   check		    ;loops back to checking if B has been pressed 
+        
+	
+;********************storing pin number***********************;
+store	
 keycheck1    ;checking if there is a value other than ff stored in checktostart
 	call keys
 	goto keycheck1
@@ -206,10 +234,9 @@ nine	movlw 0xdd
 	
     ;in code1, code2, code3 and code4 is the 1 byte address of each pin number
     ;to start entering the pin to unlock press B button, so first check if button b is pressed
-check	call   keypad
-	movlw  0xeb		    ;eb is address of button B
-	cpfseq checktostart	    ;checking if button pressed is B, skips the next line if it is, address of button pressed is in checktostart
-	goto   check		    ;loops back to checking if B has been pressed 
+
+unlockp
+	clrf   wrongflag
 b1check				    ;checking if there is a value other than ff stored in checktostart
         call   keys
 	goto   b1check
@@ -271,9 +298,9 @@ r4check	call releases
 	movlw, 0x00
 	cpfsgt wrongflag       ;checks if wrong pin has been flagged, skips if more than 0  
 	clrf   lock		;UNLOCKS THE SAFE!!!!!
-				; displays 'incorrect password' on the LCD
+	goto   check 			; displays 'incorrect password' on the LCD
 	
-	
+	return
 	
 	
 	
