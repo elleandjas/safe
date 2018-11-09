@@ -5,7 +5,7 @@
 	    extern	LCD_Setup, LCD_Write_Message, clear_display, LCD_Send_Byte_I, LCD_delay_x4us    ; external LCD subroutines
 	    extern	Mnewp, Mpin,  Mincpin;, M3inc, Mlock, Moldp      ;external messages subroutines
 	    
-	
+;hi everyone just checking if git works 	
 ;**************reserving bytes in access ram**********************
 acs0		udata_acs   ; reserve data space in access ram
 counter		res 1	    ; reserve one byte for a counter variable
