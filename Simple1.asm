@@ -1,8 +1,10 @@
 	#include p18f87k22.inc
 	
+	    global     delay
 	    extern	UART_Setup, UART_Transmit_Message  ; external UART subroutines
-	    extern  LCD_Setup, LCD_Write_Message, clear_display, LCD_Send_Byte_I, LCD_delay_x4us, LCD_Send_Byte_D	 	   ; external LCD subroutines
-	
+	    extern	LCD_Setup, LCD_Write_Message, clear_display, LCD_Send_Byte_I, LCD_delay_x4us    ; external LCD subroutines
+	    extern	Mnewp, Mpin,  Mincpin;, M3inc, Mlock, Moldp      ;external messages subroutines
+	    
 	
 ;**************reserving bytes in access ram**********************
 acs0		udata_acs   ; reserve data space in access ram
@@ -23,23 +25,16 @@ code4		res 1
 checktostart	res 1	    ;this is the value read by the keypad function 
 flag		res 1	    ; to check whether the value is one of the keys or half stored rows/cols
 wrongflag       res 1
-
 		
-
-tables	udata	0x400	    ; reserve data anywhere in RAM (here at 0x400)
-myArray res 0xff	    ; reserve 128 bytes for message data
+;tables	udata	0x400	    ; reserve data anywhere in RAM (here at 0x400)
+;myArray res 0xff	    ; reserve 128 bytes for message data
  
 rst	code	0	    ; reset vector
 	goto	setup
 
 pdata	code		    ; a section of programme memory for storing data
-
-	
-	
+		
 ;******************data in ****************************	
-;myTable 
-;	data	    "DCBA#9630852*741\n"	; message, plus carriage return
-;	constant    myTable_1 =.16	; length of data	
 
 main	code
 	; ******* Programme FLASH read Setup Code ***********************
@@ -57,17 +52,12 @@ enable	bsf PADCFG1, REPU, BANKED		; PortE pull-ups on
 	
 	clrf  LATE
 	
+	call clear_display
 	
 ;*********************safe setup********************
 	
 locked? movlw  0x00
 	movwf  lock, ACCESS       ;making the safe unlocked to start NEED TO FIGURE OUT LOCK MECHANISM
-	
-myTable	 
-	data	    "Choose your pin\n"	; message, plus carriage return
-	constant    myTable_1 =.15	; length of data
-	 
-	 
 	
 	clrf   code1
 	clrf   code2
@@ -76,20 +66,29 @@ myTable
 	clrf   flag
 	clrf   wrongflag 
 	
-	call store     ;LCD message telling you to enter the initial pin 
+	call   Mnewp
 	
+	call   store     ;LCD message telling you to enter the initial pin 
+	call   clear_display
+
 ;********************which command to go to*******************;
 	
 checkb	call   keypad
 	movlw  0xeb		    ;eb is address of button B
 	cpfseq checktostart	    
 	goto   checkc
+	call   Mpin		    ;LCD messsage 'Enter pin'
 	clrf   wrongflag
         call   unlockp
+	call   clear_display
 	movlw  0x00
 	cpfsgt wrongflag       ;checks if wrong pin has been flagged, skips if more than 0  
 	clrf   lock		;UNLOCKS THE SAFE!!!!!
-				; displays 'incorrect password' on the LC
+	call   Mincpin; displays 'incorrect password' on the LC
+	call   delay
+	call   delay
+	call   delay
+	call   clear_display
 checkc	call   keypad
 	movlw  0xed		    ;ed is address of button C
 	cpfseq checktostart	   
@@ -247,8 +246,7 @@ r4check	call	release
 	
 	return
 
-;*******************keypad read****************************	
-		
+;*******************keypad read****************************			
 
 keypad	
 outin   movlw 0x0f			;to read the rows 0x0f = 00001111
@@ -271,7 +269,6 @@ read    movf  row_store, 0	    ;moving row store to Wreg
 				    
 	return
 
-	
 ;*****************comparison subroutine*************
 	
 compare clrf	flag		;this is useful for when the button is pressed half way through a keypad
@@ -325,113 +322,7 @@ release      ;checking if the buttons have been released
 	goto release
 	return 
 	
-	
-	
-;**************put keyboard on to lcd converter ***********
-   
-
-rbitcheck 
-	movlw	0x03    
-	btfss	row_store, 0x03
-	movwf	a0, ACCESS
-	movlw	0x02    
-	btfss	row_store, 0x02
-	movwf	a0, ACCESS
-	movlw	0x01  
-	btfss	row_store, 0x01
-	movwf	a0, ACCESS
-	movlw	0x00  
-	btfss	row_store, 0x00
-	movwf	a0, ACCESS
-	
-	call	delay	
-
-
-cbitcheck 
-	movlw	0x03*4    
-	btfss	col_store, 0x07
-	movwf	a1, ACCESS
-	movlw	0x02*4    
-	btfss	col_store, 0x06
-	movwf	a1, ACCESS
-	movlw	0x01*4    
-	btfss	col_store, 0x05
-	movwf	a1, ACCESS
-	movlw	0x00    
-	btfss	col_store, 0x04
-	movwf	a1, ACCESS
-	
-	
-	call	delay
-	
-
-adder  movf  a1, 0
-       addwf  a0, 0
-    
-       movwf  a 
-   
-    call delay	
-
-	
-	
-
-	
-;**************loading data into table****************************************
-tableload 	
-
-	lfsr	FSR0, myArray	; Load FSR0 with address in RAM	
-	movlw	upper(myTable)	; address of data in PM
-	movwf	TBLPTRU		; load upper bits to TBLPTRU
-	movlw	high(myTable)	; address of data in PM
-	movwf	TBLPTRH		; load high byte to TBLPTRH
-	movlw	low(myTable)	; address of data in PM
-	movwf	TBLPTRL		; load low byte to TBLPTRL
-	movlw	myTable_1	; bytes to read
-	movwf 	counter		; our counter register
-loop 	tblrd*+			; one byte from PM to TABLAT, increment TBLPRT
-	movff	TABLAT, POSTINC0; move data from TABLAT to (FSR0), inc FSR0	
-	decfsz	counter		; count down to zero
-	
-	
-	bra	loop		; keep going until finished
-	
-	
-
-;********************output to displays************************		
-
-	
-rstart		; output message to LCD (leave out "\n")
-	lfsr	FSR2, myArray
-	movf    a, 0
-	addwf   PLUSW2, 0
-	movlw   0x00
-	call	LCD_Write_Message
-	call delay
-
-     
-     
- 
-
-    
-;***************** clear lcd *************************
-			
-LCDclear  
-	movlw 0xFF
-	movwf TRISD, ACCESS    ;port d is now an input
-	movff PORTD, comp
-	movlw 0x00
-	cpfsgt comp, ACCESS
-	goto	LCDclear
-	call	clear_display
-	
-	
-	call delay
-
-	goto start  
-	
-	
 ;***********************delay****************************
-; a delay subroutine if you need one, times around loop in delay_count
 delay	movlw   0xaa 
 	movwf   delay_count	
 delay1	decfsz	delay_count	; decrement until zero

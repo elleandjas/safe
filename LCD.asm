@@ -58,16 +58,12 @@ LCD_Setup
 	return
 
 LCD_Write_Message	    ; Message stored at FSR2, length stored in W
-;	movwf   LCD_counter
+	movwf   LCD_counter
 LCD_Loop_message
 	movf    POSTINC2, W
 	call    LCD_Send_Byte_D
-;	decfsz  LCD_counter
-;	movf    LCD_counter, W
-;	sublw   .16
-;	cpfslt  LCD_counter, ACCESS
-;	bra	LCD_Loop_message
-
+	decfsz  LCD_counter
+	bra	LCD_Loop_message
 	return
 
 LCD_Send_Byte_I		    ; Transmits byte stored in W to instruction reg
