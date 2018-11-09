@@ -523,6 +523,12 @@
         <property key="warningmessagebreakoptions.warningmessages" value="holdstate"/>
       </Simulator>
       <item path="Subroutines.asm" ex="true" overriding="false">
+        <MPASMWIN-AS>
+        </MPASMWIN-AS>
+        <MPASMWIN-LD>
+        </MPASMWIN-LD>
+        <mpasmsuite>
+        </mpasmsuite>
       </item>
       <mpasmsuite>
         <property key="absolute-mode" value="false"/>
@@ -532,6 +538,12 @@
         <property key="extended-mode-mplink" value="false"/>
       </mpasmsuite>
       <item path="subroutines.asm" ex="true" overriding="false">
+        <MPASMWIN-AS>
+        </MPASMWIN-AS>
+        <MPASMWIN-LD>
+        </MPASMWIN-LD>
+        <mpasmsuite>
+        </mpasmsuite>
       </item>
     </conf>
   </confs>
