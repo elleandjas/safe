@@ -3,7 +3,7 @@
 	    global     delay
 	    extern	UART_Setup, UART_Transmit_Message  ; external UART subroutines
 	    extern	LCD_Setup, LCD_Write_Message, clear_display, LCD_Send_Byte_I, LCD_delay_x4us    ; external LCD subroutines
-	    extern	Mnewp, Mpin,  Mincpin;, M3inc, Mlock, Moldp      ;external messages subroutines
+	    extern	Mnewp, Mpin, Mincpin, M3inc, Mlock, Moldp, Munlock, Msuc, Mstar      ;external messages subroutines
 	    
 	
 ;**************reserving bytes in access ram**********************
@@ -52,7 +52,6 @@ enable	bsf PADCFG1, REPU, BANKED		; PortE pull-ups on
 	
 	clrf  LATE
 	
-	call clear_display
 	
 ;*********************safe setup********************
 	
@@ -65,30 +64,22 @@ locked? movlw  0x00
 	clrf   code4
 	clrf   flag
 	clrf   wrongflag 
+			  ;LCD message telling you to enter the initial pin
 	
-	call   Mnewp
-	
-	call   store     ;LCD message telling you to enter the initial pin 
+	call   store      
 	call   clear_display
 
 ;********************which command to go to*******************;
 	
 checkb	call   keypad
-	movlw  0xeb		    ;eb is address of button B
+	movlw  0xeb		  ;eb is address of button B
 	cpfseq checktostart	    
 	goto   checkc
-	call   Mpin		    ;LCD messsage 'Enter pin'
-	clrf   wrongflag
         call   unlockp
 	call   clear_display
 	movlw  0x00
-	cpfsgt wrongflag       ;checks if wrong pin has been flagged, skips if more than 0  
-	clrf   lock		;UNLOCKS THE SAFE!!!!!
-	call   Mincpin; displays 'incorrect password' on the LC
-	call   delay
-	call   delay
-	call   delay
-	call   clear_display
+	cpfsgt wrongflag	    ;checks if wrong pin has been flagged, skips if more than 0  
+	call   unlock		    ;UNLOCKS THE SAFE!!!!!
 checkc	call   keypad
 	movlw  0xed		    ;ed is address of button C
 	cpfseq checktostart	   
@@ -113,14 +104,17 @@ check#	call   keypad
 	movlw  0x00
 	cpfsgt wrongflag 	
 	call   store		    ;calls pin store subroutine (need message saying store)
+	
 	goto   checkb		    ;loops back to checking for command buttons
         
 
 ;###################### storing pin number #################################
 store	
       ;checking if the buttons have been released 
+	
 	call release
-keycheck1    ;checking if there is a value other than ff stored in checktostart
+	call   Mnewp
+keycheck1			    ;checking if there is a value other than ff stored in checktostart
 	call keypad
 	movlw 0xff
 	cpfslt checktostart, 0
@@ -129,10 +123,12 @@ keycheck1    ;checking if there is a value other than ff stored in checktostart
 	movlw 0x00
 	cpfseq flag, 0
 	goto keycheck1 
-	movff checktostart, code1 ;first key is stored in code 1 	
-release1      ;checking if the buttons have been released 
+	movff checktostart, code1   ;first key is stored in code 1 
+	call clear_display
+	call Mstar
+release1			    ;checking if the buttons have been released 
 	call release
-keycheck2     ;checking if there is a value other than ff stored in checktostart
+keycheck2			    ;checking if there is a value other than ff stored in checktostart
 	call keypad
 	movlw 0xff
 	cpfslt checktostart, 0
@@ -142,9 +138,10 @@ keycheck2     ;checking if there is a value other than ff stored in checktostart
 	cpfseq flag, 0
 	goto keycheck2 
 	movff checktostart, code2
+	call Mstar
 release2
 	call release	
-keycheck3     ;checking if there is a value other than ff stored in checktostart
+keycheck3			    ;checking if there is a value other than ff stored in checktostart
 	call keypad
 	movlw 0xff
 	cpfslt checktostart, 0
@@ -154,6 +151,7 @@ keycheck3     ;checking if there is a value other than ff stored in checktostart
 	cpfseq flag, 0
 	goto keycheck3
 	movff checktostart, code3
+	call Mstar
 release3     
 	call release
 keycheck4   ;checking if there is a value other than ff stored in checktostart
@@ -166,15 +164,23 @@ keycheck4   ;checking if there is a value other than ff stored in checktostart
 	cpfseq flag, 0
 	goto keycheck4 
 	movff checktostart, code4
+	call Mstar
 release4     
-	call  release	
+	call  release
+	
+	
+	call clear_display
+	call Msuc
+	
 	return
 
 ;CCCCCCCCCCCCCCCCCC RE-LOCK SAFE CCCCCCCCCCCCCCCCCCCCCCCCC
 	
 locker
+	call clear_display
 	call release
 	setf lock
+	call Mlock
 	return 
 
 ;BBBBBBBBBBBBBBBBBB UNLOCK WITH PIN ENTRY BBBBBBBBBBBBBBBBBBBBB
@@ -182,7 +188,9 @@ locker
     ;in code1, code2, code3 and code4 is the 1 byte address of each pin number
     ;to start entering the pin to unlock press B button, so first check if button b is pressed
 
-unlockp
+unlockp call clear_display
+	clrf   wrongflag
+	call    Mpin		    ;LCD messsage 'Enter pin'
         call	release
         call	delay
 b1check				    ;checking if there is a value other than ff stored in checktostart
@@ -193,8 +201,10 @@ b1check				    ;checking if there is a value other than ff stored in checktostar
 	call	compare 
 	movlw	0x00
 	cpfseq	flag, 0
-	goto	b1check                ;looping back to the check for the first button being poressed  
-	movf	checktostart, 0      ;a button has been pressed, comapre to code1, the first number in the stored password 
+	goto	b1check             ;looping back to the check for the first button being poressed 
+	call    clear_display
+	call    Mstar
+	movf	checktostart, 0     ;a button has been pressed, comapre to code1, the first number in the stored password 
 	cpfseq	code1		    ;checking if button pressed is the same as stored, skip if equal to 
 	incf	wrongflag, 1, 0	    ;flagged if entered password is not equal to stored, but will still compare the other numbers for real life effect
 r1check	call	release
@@ -207,7 +217,8 @@ b2check				    ;check number 2
 	call	compare 
 	movlw	0x00
 	cpfseq	flag, 0
-	goto	b2check                
+	goto	b2check
+	call	Mstar
 	movf	checktostart, 0    
 	cpfseq	code2		    
 	incf	wrongflag, 1, 0	   
@@ -222,7 +233,8 @@ b3check				    ;check number 3!
 	call	compare 
 	movlw	0x00
 	cpfseq	flag, 0
-	goto	b3check                 
+	goto	b3check  
+	call    Mstar
 	movf	checktostart, 0      
 	cpfseq	code3		    
 	incf	wrongflag, 1, 0	    
@@ -237,48 +249,55 @@ b4check	nop			    ;check number 4!
 	call	compare 
 	movlw	0x00
 	cpfseq	flag, 0
-	goto	b4check                 
+	goto	b4check   
+	call    Mstar
 	movf	checktostart, 0    
 	cpfseq	code4		    
 	incf	wrongflag, 1, 0	    
 	nop
 r4check	call	release
 	
+	call	clear_display
+	
+	movlw 0x00
+	cpfsgt wrongflag
+	return
+	call   Mincpin		    ; displays 'incorrect password' on the LCD
 	return
 
 ;*******************keypad read****************************			
 
 keypad	
 outin   movlw 0x0f			;to read the rows 0x0f = 00001111
-	movwf TRISE, ACCESS	;inputs 0-3, outputs 4-7
+	movwf TRISE, ACCESS	    ;inputs 0-3, outputs 4-7
 	call delay
 rowstore
 	movff PORTE, row_store	    ;stores row number 
 	
-inout   movlw 0xf0  	          ;to read th e columns 0xf0 = 1111000
-	movwf TRISE, ACCESS       ;outputs 0-3, inputs 4-7
+inout   movlw 0xf0		    ;to read th e columns 0xf0 = 1111000
+	movwf TRISE, ACCESS	    ;outputs 0-3, inputs 4-7
 	call delay 
 colstore		    
-	movff PORTE, col_store		;column number is stored
+	movff PORTE, col_store	    ;column number is stored
 	call delay 
 	
 read    movf  row_store, 0	    ;moving row store to Wreg
 	iorwf col_store, 0	    ;OR ing col sotre and row store to get full address of button in 8 bits 
-	movwf checktostart	;storing w in check to start		    ;e.g. 2 = second column, first row = 1011 0111
+	movwf checktostart	    ;storing w in check to start		    ;e.g. 2 = second column, first row = 1011 0111
 	call delay
 				    
 	return
 
 ;*****************comparison subroutine*************
 	
-compare clrf	flag		;this is useful for when the button is pressed half way through a keypad
+compare clrf	flag		    ;this is useful for when the button is pressed half way through a keypad
 zero    movlw	0xbe
 	cpfseq 	checktostart 
 	goto	one
 	return
-one	movlw	0x77		;and the row and columns arent both stored properly. There are 
-	cpfseq 	checktostart    ;
-	goto	two
+one	movlw	0x77		    ;and the row and columns arent both stored properly. There are 
+	cpfseq 	checktostart	    ;
+	goto	two 
 	return
 two	movlw	0xb7
 	cpfseq 	checktostart
@@ -322,12 +341,20 @@ release      ;checking if the buttons have been released
 	goto release
 	return 
 	
+;******************unlock safe*******************
+unlock  clrf  lock
+	call  Munlock
+	return 
 ;***********************delay****************************
-delay	movlw   0xaa 
+delay	movlw   0xff 
 	movwf   delay_count	
 delay1	decfsz	delay_count	; decrement until zero
 	bra	delay1
 	return
 
+	
+;***********************end of sequence
+	
+	call clear_display 
 	end 
 	
