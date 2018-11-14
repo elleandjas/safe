@@ -1,10 +1,10 @@
 	#include p18f87k22.inc
 	
-	    global      delay, code1, code2, code3, code4, threetimes
+	    global      delay, code1, code2, code3, code4, threetimes, fivetimes
 	    extern	UART_Setup, UART_Transmit_Message						; external UART subroutines
 	    extern	LCD_Setup, LCD_Write_Message, clear_display, LCD_Send_Byte_I, LCD_delay_x4us    ; external LCD subroutines
-	    extern	Mnewp, Mpin, Mincpin, M3inc, Mlock, Moldp, Munlock, Msuc, Mstar, Mbreach	;external messages subroutines
-	    ;extern      c1store, c2store, c3store, c4store, t3store, t3read 
+	    extern	Mnewp, Mpin, Mincpin, M3inc, Mlock, Moldp, Munlock, Msuc, Mstar, Mbreach, Mspeak	;external messages subroutines
+;	    extern      c1store, c2store, c3store, c4store, t3store, t3read
 	
 ;**************reserving bytes in access ram**********************
 acs0		udata_acs   ; reserve data space in access ram
@@ -28,8 +28,9 @@ delay_countL    res 1
 delay_countG    res 1	
 delay_countT    res 1	
 LED		res 1
-		
-
+voicebyte	res 1	    ;if the voice byte is low or high 	
+fivetimes       res 1       ;five voice command attempts allowed
+flasher		res 1 
 ;tables	udata	0x400	    ; reserve data anywhere in RAM (here at 0x400)
 ;myArray res 0xff	    ; reserve 128 bytes for message data
 
@@ -55,10 +56,11 @@ enable	bsf	PADCFG1, REPU, BANKED		; PortE pull-ups on
 	movlb	0x00				; set BSR back to Bank 0
 	
 	clrf	LATE
-;	VCMD_OPEN = 0				   ;set up code for the voice software
-;	VCMD_CLOSE = 1
-;	VCMD_OPENJ = 2
-;	VCMD_CLOSEJ = 3 
+	
+VCMD_OPEN = 0				   ;set up code for the voice software
+VCMD_CLOSE = 1
+VCMD_OPENJ = 2
+VCMD_CLOSEJ = 3 
 	
 	call store			;enters new pin 
 ;*********************safe setup********************
@@ -66,16 +68,15 @@ enable	bsf	PADCFG1, REPU, BANKED		; PortE pull-ups on
 locked? movlw	0x00
 	movwf	lock, ACCESS       ;making the safe unlocked to start NEED TO FIGURE OUT LOCK MECHANISM
 	
-	movlw   0x00
+	movlw   0xf0		   ;upper nibbles input lower nibbles output 
 	movwf   TRISD		;PORT F output for lEDs
-	
+	clrf    PORTD
 	clrf	wrongflag 
 			  ;LCD message telling you to enter the initial pin
 			  
 	call	clear_display
 	;call	t3read 
-	movlw 0x03
-	movwf threetimes 
+	call    resetbreach
 ;********************which command to go to*******************;
 	
 checkb	call	keypad
@@ -89,18 +90,18 @@ checkb	call	keypad
 checkc	call	keypad
 	movlw	0xed		    ;ed is address of button C
 	cpfseq	checktostart	   
-	goto	check#	    	    
+	goto	checks	    	    
         call	locker		    ;lock the safe again 
 ;checkd	call   keypad
 ;	movlw  0xee		    ;ee is address of buttonD
 ;	cpfseq checktostart	   
 ;	nop
 ;	goto   setvoice		    ;calls set voice pasd=sword subroutine 
-;checks	call   keypad
-;	movlw  0x7e		    ;7e is address of button *
-;	cpfseq checktostart	    
-;	nop
-;	goto   unlockv		    ;calls the voce unlocking subroutine 
+checks	call   keypad
+	movlw  0x7e		    ;7e is address of button *
+	cpfseq checktostart	    
+	goto	check#
+	call    voice		    ;calls the voce unlocking subroutine 
 check#	call	keypad
 	movlw	0xde		    ;de is address of button #
 	cpfseq	checktostart	   
@@ -110,10 +111,13 @@ check#	call	keypad
 	movlw	0x00
 	cpfsgt	wrongflag 	
 	call	store		    ;calls pin store subroutine (need message saying store)
-	
+
 	goto	checkb		    ;loops back to checking for command buttons
         
 
+	
+	
+	
 ;###################### storing pin number #################################
 store	
       ;checking if the buttons have been released 
@@ -189,10 +193,9 @@ locker
 	call	clear_display
 	call	release
 	setf	lock
+	
 	call	Mlock
-	movlw   0x02
-	movwf   LED, ACCESS
-	movff   LED, PORTD
+	
 	
 	
 	return 
@@ -279,6 +282,9 @@ r4check	call	release
 	cpfsgt	wrongflag
 	return 
 	call	Mincpin		; displays 'incorrect password' on the LCD
+	call    red
+	call    delayG
+	call	ledoff 
 	decfsz  threetimes	;decreases the incorrect password counter by 1
 	;call    t3store		;store threetimes in programme memory 
 	movlw   0x00
@@ -364,14 +370,11 @@ release      ;checking if the buttons have been released
 ;******************unlock safe*******************
 unlock  clrf	lock
 	call	Munlock
+	call	green
+	call    delayG
+	call    ledoff
+	call    resetbreach
 	
-	movlw   0x01
-	movwf   LED, ACCESS
-	movff   LED, PORTD
-	
-	movlw	0x03
-	movwf	threetimes, 0 
-;	call	t3store   ;restoring 3 into the programme memory 
 	return 
 ;***********************delay****************************
 delay	movlw   0xff 
@@ -394,21 +397,88 @@ delayG1	call    delayL
 	bra	delayG1
 	return 
 	
-delayT  movlw	0xff	
+delayT				   ;the longest delays require an argument for how many delay G you want 
 	movwf   delay_countT
 delayT1	call    delayG
 	decfsz  delay_countT
 	bra	delayT1
 	return 	
+	
+;******************** reset 5 and 3 count for breach***************
+resetbreach
+	movlw	0x03
+	movwf	threetimes, 0 
+;	call	t3store   ;restoring 3 into the programme memory 
+	movlw	0x05
+	movwf	fivetimes, 0
+	return
+	
+	
+	
 ;***********************safe has been breached********************	
 	
 timeout
 	call	clear_display
-	call	Mbreach 
-	call    delayT
-	movlw	0x03 
-	movwf	threetimes, 0 
+	call	Mbreach
+	call	redflash 
+	
+	call    resetbreach
 	call	clear_display 
+	return 
+	
+;*********************voice unlock****************************	
+voice   call    clear_display
+	call	Mspeak
+	movlw   0x02
+	call	delayT			;might need to be shorter than this 	
+	
+voicecheck
+	movff	PORTD, voicebyte
+	movlw	0x7f
+	cpfsgt	voicebyte    ;comapring voicebyte (input from portD) with 7F, if more than pin7 is lit and it skips a line
+	goto    incvoice
+	call    clear_display
+	call	unlock
+	return
+	
+incvoice
+	call    clear_display
+	call	red
+	call    delayG
+	call	ledoff 
+	call	Mincpin
+	decfsz  fivetimes
+	movlw   0x00
+	cpfsgt  fivetimes, 0
+	call    timeout
+	return 
+;***********************LED sequences*******************************
+green   
+	movlw   0x01
+	movwf   LED, ACCESS
+	movff   LED, PORTD
+	return
+	
+red	movlw   0x02
+	movwf   LED, ACCESS
+	movff   LED, PORTD
+	return
+ledoff
+	movlw   0x00 
+	movwf   LED, ACCESS
+	movff   LED, PORTD
+	return 
+	
+redflash
+	movlw	0xff
+	movwf	flasher
+redflash1
+	call	red
+	call	delayG 
+	call	ledoff
+	call	delayG
+	decfsz	flasher
+	goto	redflash1
 	return 
 	
 ;***********************end of sequence*********************

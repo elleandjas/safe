@@ -146,8 +146,6 @@ lcdlp1	decf 	LCD_cnt_l,F	; no carry when 0x00 -> 0xff
 	nop                     ; carry, then loop again
 	return			; carry reset so return
 
-	
-	
 
 clear_display
 	movlw	b'00000001'    ;clears display

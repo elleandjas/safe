@@ -17,7 +17,6 @@
       <itemPath>UART.asm</itemPath>
       <itemPath>LCD.asm</itemPath>
       <itemPath>Subroutines.asm</itemPath>
-      <itemPath>subroutines.asm</itemPath>
       <itemPath>messages.asm</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
@@ -27,6 +26,9 @@
     </logicalFolder>
     <itemPath>README.md</itemPath>
   </logicalFolder>
+  <sourceRootList>
+    <Elem></Elem>
+  </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
     <conf name="default" type="2">
@@ -75,6 +77,7 @@
                   value="Press to browse for a specific firmware version"/>
         <property key="ToolFirmwareOption.UseLatestFirmware" value="true"/>
         <property key="debugoptions.useswbreakpoints" value="true"/>
+        <property key="firmware.download.all" value="false"/>
         <property key="hwtoolclock.frcindebug" value="false"/>
         <property key="memories.aux" value="false"/>
         <property key="memories.bootflash" value="false"/>
@@ -523,6 +526,12 @@
         <property key="warningmessagebreakoptions.warningmessages" value="holdstate"/>
       </Simulator>
       <item path="Subroutines.asm" ex="true" overriding="false">
+        <MPASMWIN-AS>
+        </MPASMWIN-AS>
+        <MPASMWIN-LD>
+        </MPASMWIN-LD>
+        <mpasmsuite>
+        </mpasmsuite>
       </item>
       <mpasmsuite>
         <property key="absolute-mode" value="false"/>
@@ -531,8 +540,6 @@
         <property key="extended-mode-mpasm" value="false"/>
         <property key="extended-mode-mplink" value="false"/>
       </mpasmsuite>
-      <item path="subroutines.asm" ex="true" overriding="false">
-      </item>
     </conf>
   </confs>
 </configurationDescriptor>
