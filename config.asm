@@ -55,7 +55,7 @@
 
 ; CONFIG5H
   CONFIG  CPB = OFF             ; Code Protect Boot (Disabled)
-  CONFIG  CPD = OFF             ; Data EE Read Protect (Disabled)
+  CONFIG  CPD = OFF		; Data EE Read Protect (Disabled)
 
 ; CONFIG6L
   CONFIG  WRT0 = OFF            ; Table Write Protect 00800-03FFF (Disabled)
