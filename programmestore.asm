@@ -5,7 +5,7 @@
 	    extern	UART_Setup, UART_Transmit_Message  ; external UART subroutines
 	    extern	LCD_Setup, LCD_Write_Message, clear_display, LCD_Send_Byte_I, LCD_delay_x4us    ; external LCD subroutines
 	    extern	Mnewp, Mpin, Mincpin, M3inc, Mlock, Moldp, Munlock, Msuc, Mstar, Mbreach ;external messages subroutines
-	    extern	code1, code2, code3, code4, threetimes, fivetimes
+	    extern	code1, code2, code3, code4, threetimes, fivetimes ;external storing codes in programme memory subroutines 
 	    
 		
 	code	
@@ -31,9 +31,9 @@ eeconstr	    ; Data Memory Value to write
 	
 
 c1store	
-	movlw	0x01 
+	movlw	0x0d 
 	movwf	EEADRH	    ; Upper bits of Data Memory Address to write
-	movlw	0x02  
+	movlw	0x0e  
 	movwf	EEADR
 	movf	code1	    ; Lower bits of Data Memory Address to write ;
 	movwf	EEDATA	 
@@ -86,9 +86,9 @@ t5store movlw	0x0b ;
 	return
 
 c1read  
-	movlw	0x01 ;
+	movlw	0x0d ;
 	movwf	EEADRH ; Upper bits of Data Memory Address to read
-	movlw	0x02 ;
+	movlw	0x0e ;
 	movwf	EEADR ; Lower bits of Data Memory Address to read
 	bcf	EECON1, EEPGD ; Point to DATA memory
 	bcf	EECON1, CFGS ; Access EEPROM
