@@ -8,8 +8,7 @@
 	
 ;**************reserving bytes in access ram**********************
 acs0		udata_acs   ; reserve data space in access ram
-counter		res 1	    ; reserve one byte for a counter variable
-			    ; reserve one byte for counter in the delay routine
+counter		res 1	    ; reserve one byte for a counter variable	    
 comp	    	res 1
 row_store	res 1	    ; row code for keypad eg 0111 is the first row 
 col_store	res 1	    ; column code for keypad eg 0111 is the first column
@@ -31,8 +30,7 @@ LED		res 1
 voicebyte	res 1	    ;if the voice byte is low or high 	
 fivetimes       res 1       ;five voice command attempts allowed
 flasher		res 1 
-;tables	udata	0x400	    ; reserve data anywhere in RAM (here at 0x400)
-;myArray res 0xff	    ; reserve 128 bytes for message data
+
 
 rst	code	0	    ; reset vector
 	goto	setup
@@ -42,7 +40,7 @@ pdata	code		    ; a section of programme memory for storing data
 ;******************data in ****************************	
 
 main	code
-	; ******* Programme FLASH read Setup Code ***********************
+; ********************** Programme FLASH read Setup Code ***********************
 setup	bcf	EECON1, CFGS	; point to Flash program memory  
 	bsf	EECON1, EEPGD 	; access Flash program memory
 	call	LCD_Setup	; setup LCD
@@ -70,7 +68,7 @@ VCMD_CLOSEJ = 3 ;is this necessary
 	call c4read 
 	
 ;	call store			;enters new pin 
-;*********************safe setup********************
+;********************* safe setup ********************
 	
 locked? movlw	0x00
 	movwf	lock, ACCESS       ;making the safe unlocked to start NEED TO FIGURE OUT LOCK MECHANISM
@@ -84,7 +82,7 @@ locked? movlw	0x00
 	call	clear_display
 	;call	t3read 
 	call    resetbreach
-;********************which command to go to*******************;
+;******************** which command to go to *******************;
 	
 checkb	call	keypad
 	movlw	0xeb		  ;eb is address of button B
@@ -299,7 +297,7 @@ r4check	call	release
 	call    timeout
 	return
 
-;*******************keypad read****************************			
+;******************* keypad read ****************************			
 
 keypad	
 outin   movlw	0x0f			;to read the rows 0x0f = 00001111
@@ -321,7 +319,7 @@ read    movf	row_store, 0	    ;moving row store to Wreg
 				    
 	return
 
-;*****************comparison subroutine*************
+;***************** comparison subroutine if correct numbers stored *************
 	
 compare clrf	flag		    ;this is useful for when the button is pressed half way through a keypad
 zero    movlw	0xbe
@@ -365,7 +363,7 @@ nine	movlw	0xdd
 	setf	flag
 	return
 	
-;*******************release from command button****************; 	
+;******************* release from command button ****************; 	
 	
 release      ;checking if the buttons have been released 
 	call	keypad
@@ -374,7 +372,7 @@ release      ;checking if the buttons have been released
 	goto	release
 	return 
 	
-;******************unlock safe*******************
+;****************** unlock safe *******************
 unlock  clrf	lock
 	call	Munlock
 	call	green
@@ -383,7 +381,7 @@ unlock  clrf	lock
 	call    resetbreach
 	
 	return 
-;***********************delay****************************
+;*********************** delay ****************************
 delay	movlw   0xff 
 	movwf   delay_count	
 delay1	decfsz	delay_count	; decrement until zero
@@ -411,7 +409,7 @@ delayT1	call    delayG
 	bra	delayT1
 	return 	
 	
-;******************** reset 5 and 3 count for breach***************
+;******************** reset 5 and 3 count for breach ***************
 resetbreach
 	movlw	0x03
 	movwf	threetimes, 0 
@@ -422,7 +420,7 @@ resetbreach
 	
 	
 	
-;***********************safe has been breached********************	
+;*********************** safe has been breached ********************	
 	
 timeout
 	call	clear_display
@@ -433,7 +431,7 @@ timeout
 	call	clear_display 
 	return 
 	
-;*********************voice unlock****************************	
+;********************* voice unlock ****************************	
 voice   call    clear_display
 	call	Mspeak
 	movlw   0x02
@@ -459,7 +457,7 @@ incvoice
 	cpfsgt  fivetimes, 0
 	call    timeout
 	return 
-;***********************LED sequences*******************************
+;*********************** LED sequences *******************************
 green   
 	movlw   0x01
 	movwf   LED, ACCESS
@@ -488,7 +486,7 @@ redflash1
 	goto	redflash1
 	return 
 	
-;***********************end of sequence*********************
+;*********************** end of sequence *********************
 	
 	call	clear_display    ;when the safe turns off the LCD screen needs to be cleared. can do this by locking the safe 
 	end 
