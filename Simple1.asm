@@ -4,7 +4,7 @@
 	    extern	UART_Setup, UART_Transmit_Message						; external UART subroutines
 	    extern	LCD_Setup, LCD_Write_Message, clear_display, LCD_Send_Byte_I, LCD_delay_x4us    ; external LCD subroutines
 	    extern	Mnewp, Mpin, Mincpin, M3inc, Mlock, Moldp, Munlock, Msuc, Mstar, Mbreach, Mspeak	;external messages subroutines
-;	    extern      c1store, c2store, c3store, c4store, t3store, t3read
+	    extern      c1store, c2store, c3store, c4store, t3store, t3read, t5read, c1read, c2read, c3read, c4read 
 	
 ;**************reserving bytes in access ram**********************
 acs0		udata_acs   ; reserve data space in access ram
@@ -60,9 +60,16 @@ enable	bsf	PADCFG1, REPU, BANKED		; PortE pull-ups on
 VCMD_OPEN = 0				   ;set up code for the voice software
 VCMD_CLOSE = 1
 VCMD_OPENJ = 2
-VCMD_CLOSEJ = 3 
+VCMD_CLOSEJ = 3 ;is this necessary 
 	
-	call store			;enters new pin 
+	call t3read
+	call t5read
+	call c1read
+	call c2read
+	call c3read
+	call c4read 
+	
+;	call store			;enters new pin 
 ;*********************safe setup********************
 	
 locked? movlw	0x00
