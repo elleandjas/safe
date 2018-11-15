@@ -4,7 +4,7 @@
 	    extern	UART_Setup, UART_Transmit_Message						; external UART subroutines
 	    extern	LCD_Setup, LCD_Write_Message, clear_display, LCD_Send_Byte_I, LCD_delay_x4us    ; external LCD subroutines
 	    extern	Mnewp, Mpin, Mincpin, M3inc, Mlock, Moldp, Munlock, Msuc, Mstar, Mbreach, Mspeak	;external messages subroutines
-	    extern      c1store, c2store, c3store, c4store, t3store, t3read, t5read, c1read, c2read, c3read, c4read 
+	    extern      c1store, c2store, c3store, c4store, t3store, t5store, t3read, t5read, c1read, c2read, c3read, c4read 
 	
 ;**************reserving bytes in access ram**********************
 acs0		udata_acs   ; reserve data space in access ram
@@ -139,7 +139,7 @@ keycheck1			    ;checking if there is a value other than ff stored in checktosta
 	cpfseq	flag, 0
 	goto	keycheck1 
 	movff	checktostart, code1   ;first key is stored in code 1 
-	;call	c1store
+	call	c1store
 	call	clear_display
 	call	Mstar
 release1			    ;checking if the buttons have been released 
@@ -154,7 +154,7 @@ keycheck2			    ;checking if there is a value other than ff stored in checktosta
 	cpfseq	flag, 0
 	goto	keycheck2 
 	movff	checktostart, code2
-	;call	c2store
+	call	c2store
 	call	Mstar
 release2
 	call	release	
@@ -168,7 +168,7 @@ keycheck3			    ;checking if there is a value other than ff stored in checktosta
 	cpfseq	flag, 0
 	goto	keycheck3
 	movff	checktostart, code3
-	;call	c3store
+	call	c3store
 	call	Mstar
 release3     
 	call	release
@@ -182,7 +182,7 @@ keycheck4   ;checking if there is a value other than ff stored in checktostart
 	cpfseq	flag, 0
 	goto	keycheck4 
 	movff	checktostart, code4
-	;call	c4store
+	call	c4store
 	call	 Mstar
 release4     
 	call	release
@@ -291,7 +291,7 @@ r4check	call	release
 	call    delayG
 	call	ledoff 
 	decfsz  threetimes	;decreases the incorrect password counter by 1
-	;call    t3store		;store threetimes in programme memory 
+	call    t3store		;store threetimes in programme memory 
 	movlw   0x00
 	cpfsgt  threetimes     ;if three incorrect codes are entered, then timeout is given. if not returns to main page 
 	call    timeout
@@ -413,9 +413,10 @@ delayT1	call    delayG
 resetbreach
 	movlw	0x03
 	movwf	threetimes, 0 
-;	call	t3store   ;restoring 3 into the programme memory 
+	call	t3store   ;restoring 3 into the programme memory 
 	movlw	0x05
 	movwf	fivetimes, 0
+	call    t5store
 	return
 	
 	
@@ -455,6 +456,7 @@ incvoice
 	decfsz  fivetimes
 	movlw   0x00
 	cpfsgt  fivetimes, 0
+	call    t5store
 	call    timeout
 	return 
 ;*********************** LED sequences *******************************
