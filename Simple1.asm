@@ -4,17 +4,14 @@
 	    global      LED, voicebyte, flasher, col_store, row_store, lock
 	    extern	LCD_Setup, LCD_Write_Message, clear_display, LCD_Send_Byte_I, LCD_delay_x4us    ; external LCD subroutines
 	    extern	Mnewp, Mpin, Mincpin, M3inc, Mlock, Moldp, Munlock, Msuc, Mstar, Mbreach, Mspeak	;external messages subroutines
-	    extern      c1store, c2store, c3store, c4store, t3store, t5store, t3read, t5read, c1read, c2read, c3read, c4read 
+	    extern      c1store, c2store, c3store, c4store, t3store, t5store, t3read, t5read, c1read, c2read, c3read, c4read, lockstore, lockread 
 	    extern	keypad, compare, voice, unlock, release, delay, delayL, delayG, delayT, resetbreach, timeout, red, green, ledoff, redflash   ;subroutines used in simple1 made external
 
 	
 ;**************reserving bytes in access ram**********************
-acs0		udata_acs   ; reserve data space in access ram
-counter		res 1	    ; reserve one byte for a counter variable	    
-comp	    	res 1
+acs0		udata_acs   ; reserve data space in access ram 
 row_store	res 1	    ; row code for keypad eg 0111 is the first row 
 col_store	res 1	    ; column code for keypad eg 0111 is the first column
-address		res 1
 lock		res 1	    ;if 0 the safe is unlocked, if 1 the safe is locked
 code1		res 1
 code2		res 1
@@ -33,14 +30,10 @@ voicebyte	res 1	    ;if the voice byte is low or high
 fivetimes       res 1       ;five voice command attempts allowed
 flasher		res 1 
 
-
+;*******************************************************************************
 rst	code	0	    ; reset vector
 	goto	setup
-
 pdata	code		    ; a section of programme memory for storing data
-		
-;******************data in ****************************	
-
 main	code
 ; ********************** Programme FLASH read Setup Code ***********************
 setup	bcf	EECON1, CFGS	; point to Flash program memory  
@@ -48,51 +41,50 @@ setup	bcf	EECON1, CFGS	; point to Flash program memory
 	call	LCD_Setup	; setup LCD
 	goto	start
 	
-;*****************keyboard set up******************
+;*****************keyboard set up***********************************************
 
 start	
- 	banksel PADCFG1				; PADCFG1 is not in Access Bank!!
+ 	banksel PADCFG1				; PADCFG1 is not in Access Bank
 enable	bsf	PADCFG1, REPU, BANKED		; PortE pull-ups on
 	movlb	0x00				; set BSR back to Bank 0
 	
 	clrf	LATE
-	
-VCMD_OPEN = 0				   ;set up code for the voice software
-VCMD_CLOSE = 1
-VCMD_OPENJ = 2
-VCMD_CLOSEJ = 3 ;is this necessary 
-	
-	
-	
-	
-	
-	
-	call t3read
-	call t5read
+;*******************************************************************************		
+	call t3read     ;getting the pre-stored values from the last time the safe was switched on from ee memory
+	call t5read	
 	call c1read
 	call c2read
 	call c3read
 	call c4read 
+	call lockread
+;*******************************************************************************	
+	movlw   0x00	;locker output port for whether the safe is unlocked or locked, this port is the input for the hardware lock circuit	   
+	movwf   TRISH, ACCESS	
+	clrf    PORTH
+	call	delay 
+	movff   lock, PORTH 
 	
-	call store			;enters new pin 
 ;********************* safe setup ********************
-	
-locked? movlw	0x00
-	movwf	lock, ACCESS       ;making the safe unlocked to start NEED TO FIGURE OUT LOCK MECHANISM
-	
-	movlw   0xf0		   ;upper nibbles input lower nibbles output 
-	movwf   TRISD		;PORT F output for lEDs
+	movlw   0xf0			;upper nibbles input lower nibbles output 
+	movwf   TRISD, ACCESS		;PORT D output for lEDs
 	clrf    PORTD
-	clrf	wrongflag 
-			  ;LCD message telling you to enter the initial pin
-			  
+	call	delay 
+	clrf	wrongflag		;clears wrong pin indicator	 
 	call	clear_display
-	call    resetbreach
+	call    resetbreach		;needs taking out and eeprom memory making 
+;********************preliminary data collection to see how long delays are****************
+	movlw   0x00	    
+	movwf   TRISJ, ACCESS
+osci	movlw   0x00			;a four instruction routine 
+	movwf   PORTJ, 0 
+        movlw   0xff
+	movwf   PORTJ, 0
+	goto    osci
 	
-;******************** which command to go to *******************;
+;******************** checking which action to complete (lock,unlock,voice unlock, reset pin) *******************;
 	
 checkb	call	keypad
-	movlw	0xeb		  ;eb is address of button B
+	movlw	0xeb		    ;eb is column/row no. of button B
 	cpfseq	checktostart	    
 	goto	checkc
         call	unlockp
@@ -100,35 +92,33 @@ checkb	call	keypad
 	cpfsgt	wrongflag	    ;checks if wrong pin has been flagged, skips if more than 0  
 	call	unlock		    ;UNLOCKS THE SAFE!!!!!
 checkc	call	keypad
-	movlw	0xed		    ;ed is address of button C
+	movlw	0xed		    ;ed is column/row no. of button C
 	cpfseq	checktostart	   
 	goto	checks	    	    
         call	locker		    ;lock the safe again 
 checks	call   keypad
-	movlw  0x7e		    ;7e is address of button *
+	movlw  0x7e		    ;7e is column/row no. of button *
 	cpfseq checktostart	    
 	goto	check#
 	call    voice		    ;calls the voce unlocking subroutine 
 check#	call	keypad
-	movlw	0xde		    ;de is address of button #
+	movlw	0xde		    ;de is column/row no. of button #
 	cpfseq	checktostart	   
 	goto	checkb
 	call	delay
 	call	unlockp		    ;if correct pin was entered the wrongflag = 0
 	movlw	0x00
 	cpfsgt	wrongflag 	
-	call	store		    ;calls pin store subroutine (need message saying store)
+	call	store		    ;calls pin store subroutine 
 
 	goto	checkb		    ;loops back to checking for command buttons
         
 
-	
-	
+
 	
 ;###################### storing pin number #################################
 store	
       ;checking if the buttons have been released 
-	
 	call	release
 	call	Mnewp
 keycheck1			    ;checking if there is a value other than ff stored in checktostart
@@ -199,12 +189,11 @@ release4
 locker
 	call	clear_display
 	call	release
-	setf	lock
-	
+	clrf	lock
+	call    lockstore 
 	call	Mlock
-	
-	
-	
+	movff   lock, PORTH
+
 	return 
 
 ;BBBBBBBBBBBBBBBBBB UNLOCK WITH PIN ENTRY BBBBBBBBBBBBBBBBBBBBB

@@ -1,14 +1,11 @@
 
 #include p18f87k22.inc
 	
-	    global      c1store, c2store, c3store, c4store, t3store, t3read, t5read,t5store, c1read, c2read, c3read, c4read
-	    extern	code1, code2, code3, code4, threetimes, fivetimes ;external storing codes in programme memory subroutines 
+	global      c1store, c2store, c3store, c4store, t3store, t3read, t5read,t5store, c1read, c2read, c3read, c4read, lockstore, lockread
+	extern	code1, code2, code3, code4, threetimes, fivetimes, lock ;external storing codes in programme memory subroutines 
 
-;eedata	idata	    
-;eepromdata DE 0x12,0x34,0x56
- 
+
 	code	
-
 	
 	
 ;***********************storing values in EECON for next time safe is turned on*********************;
@@ -84,6 +81,15 @@ t5store movlw	0x00 ;
 	call	eeconstr
 	return
 
+lockstore	
+	movlw	0x00 
+	movwf	EEADRH	    ; Upper bits of Data Memory Address to write
+	movlw	0x07  
+	movwf	EEADR
+	movf	lock, W	    ; Lower bits of Data Memory Address to write ;
+	movwf	EEDATA	 
+	call	eeconstr	
+	return
 c1read  
 	clrf	EEDATA
 	movlw	0x00 ;
@@ -162,7 +168,18 @@ t5read
 	movwf   fivetimes, 0 ;setting up three times from last stored value 
 	return 
 
-	
+lockread  
+	movlw	0x00 ;
+	movwf	EEADRH ; Upper bits of Data Memory Address to read
+	movlw	0x07 ;
+	movwf	EEADR ; Lower bits of Data Memory Address to read
+	bcf	EECON1, EEPGD ; Point to DATA memory
+	bcf	EECON1, CFGS ; Access EEPROM
+	bsf	EECON1, RD ; EEPROM Read
+	nop
+	movf	EEDATA, W ; W = EEDATA	
+	movwf   lock, 0 ;setting up lock byte from last stored value 
+	return 	
 	
 
 	
