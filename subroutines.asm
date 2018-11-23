@@ -32,10 +32,10 @@ read    movf	row_store, 0	    ;moving row store to Wreg
 				    
 	return
 
-;***************** comparison subroutine if correct numbers stored *************
+;***************** COMPARE subroutine if correct numbers stored *************
 	
 	;a subroutine which only lets the code store if the computer has correctly registered the rows and columns. during testing the computer may only store rows, which does not correspond to a number on the keypad. 
-	;the result of this subroutine is a high or low flag determining whether a correct number has been read which is allowed for the code 
+	;the result of this subroutine is a high or low 'flag' determining whether a correct number has been read. 
 	
 compare	
 	clrf	flag		;sets the flag to 0     
@@ -80,16 +80,16 @@ nine	movlw	0xdd
 	setf	flag			;if no correct number stored (0-9) the flag is set high. 
 	return
 	
-;******************* release from command button ****************; 	
-	;if the button is released, then the computer can begin to store the next button  
-release      ;checking if the buttons have been released 
+;******************* RELEASE button check****************; 	
+				    ;if the button is released, then the computer can begin to store the next button which may be a pin entry or a new action 
+release				    ;checking if the buttons have been released 
 	call	keypad
-	movlw	0xff
+	movlw	0xff		    ;if there is a no button pressed the row and column will be 0xff
 	cpfseq	checktostart, 0
 	goto	release
 	return 
 	
-;*********************pin unlock  *******************
+;********************* UNLOCK *******************
 unlock  setf	lock
 	movff   lock, PORTH
 	call	lockstore 
@@ -101,13 +101,13 @@ unlock  setf	lock
 	
 	 return 
 	
-;********************* voice unlock ****************************	
+;********************* VOICE ROUTINE ****************************	
 voice   call    clear_display
-	call	Mspeak
-	movlw   0x02
-	call	delayT			;might need to be shorter than this 	
+	call	Mspeak	
+	movlw   0x02	
+	call	delayT			;the amount of time the 'speak now' message is displayed for is the time the user has to get a correct voice store	
 	
-voicecheck
+voicecheck				;if IO1 has been set high by a correct 
 	movff	PORTD, voicebyte
 	movlw	0x7f
 	cpfsgt	voicebyte		;comapring voicebyte (input from portD) with 7F, if more than pin7 is lit and it skips a line
@@ -130,7 +130,9 @@ incvoice
 	return 
 
 	
-;******************** reset 5 and 3 count for breach ***************
+;******************** RESET BREACH  ***************
+	;resets the number of allowed pin entries and voice entries
+	;3 tries for pin and 5 tries for voice entry 
 resetbreach
 	movlw	0x03
 	movwf	threetimes, 0 
@@ -142,7 +144,7 @@ resetbreach
 	
 	
 	
-;*********************** safe has been breached ********************	
+;*********************** safe has been BREACHED ********************	
 	
 timeout
 	call	clear_display		    
@@ -163,13 +165,13 @@ red	movlw   0x02		    ;turns red on when incorrect password
 	movwf   LED, ACCESS
 	movff   LED, PORTD
 	return
-ledoff
+ledoff				    ;turns both leds off 
 	movlw   0x00 
 	movwf   LED, ACCESS
 	movff   LED, PORTD
 	return 
 	
-redflash			    ;makes red KED flash continuously for the time the safe is locked when breached 
+redflash			    ;makes red KED flash continuously for that the safe is breached and unaccessible 
 	movlw	0xff
 	movwf	flasher
 redflash1 
@@ -184,25 +186,25 @@ redflash1
 ;*********************** delay ****************************
 delay	movlw   0xff			;smallest delay
 	movwf   delay_count   	                                                 
-     delay1	decfsz	delay_count	; decrement until zero
+delay1	decfsz	delay_count		; decrement until zero
 	bra	delay1
 	return
 	
-delayL  movlw	0xff			;second smallest delay
+delayL  movlw	0xff			;second smallest delay, calls smaller delay ff times
 	movwf   delay_countL
 delayL1	call    delay
 	decfsz  delay_countL
 	bra	delayL1
 	return 
 
-delayG  movlw	0xff 			;second largest delay 
+delayG  movlw	0xff 			;second largest delay, calls second smallest ff times
 	movwf   delay_countG
 delayG1	call    delayL
 	decfsz  delay_countG
 	bra	delayG1
 	return 
 	
-delayT					;the longest delay
+delayT					;the longest delay, the other routines specify how many of these delays they want 
 	movwf   delay_countT
 delayT1	call    delayG
 	decfsz  delay_countT

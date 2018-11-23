@@ -4,33 +4,37 @@
 	    global      LED, voicebyte, flasher, col_store, row_store, lock
 	    extern	LCD_Setup, LCD_Write_Message, clear_display, LCD_Send_Byte_I, LCD_delay_x4us    ; external LCD subroutines
 	    extern	Mnewp, Mpin, Mincpin, M3inc, Mlock, Moldp, Munlock, Msuc, Mstar, Mbreach, Mspeak	;external messages subroutines
-	    extern      c1store, c2store, c3store, c4store, t3store, t5store, t3read, t5read, c1read, c2read, c3read, c4read, lockstore, lockread 
-	    extern	keypad, compare, voice, unlock, release, delay, delayL, delayG, delayT, resetbreach, timeout, red, green, ledoff, redflash   ;subroutines used in simple1 made external
+	    extern      c1store, c2store, c3store, c4store, t3store, t5store, t3read, t5read, c1read, c2read, c3read, c4read, lockstore, lockread    ;external programmestore subroutines
+	    extern	keypad, compare, voice, unlock, release, delay, delayL, delayG, delayT, resetbreach, timeout, red, green, ledoff, redflash     ;subroutines used in simple1 made external
 
 	
-;**************reserving bytes in access ram**********************
+;**************reserving space in ACCESS ram**********************
 acs0		udata_acs   ; reserve data space in access ram 
-row_store	res 1	    ; row code for keypad eg 0111 is the first row 
-col_store	res 1	    ; column code for keypad eg 0111 is the first column
-lock		res 1	    ;if 0 the safe is unlocked, if 1 the safe is locked
-code1		res 1
+row_store	res 1	    ; row code for keypad eg (0111 is the first row) 
+col_store	res 1	    ; column code for keypad eg (0111 is the first column)
+lock		res 1	    ; if 0 the safe is unlocked, if 1 the safe is locked
+		
+code1		res 1	    ; STORE subroutine
 code2		res 1
 code3		res 1
 code4		res 1
-checktostart	res 1	    ;this is the value read by the keypad function 
-flag		res 1	    ; to check whether the value is one of the keys or half stored rows/cols
-wrongflag       res 1
-threetimes	res 1	    ;also going to store in programme memory so that is only moved when the door is unlocked successful
-delay_count	res 1	    
+		
+checktostart	res 1	    ; this is the value read by the keypad function 
+flag		res 1	    ; to check whether the value is one of the keys or half stored rows/cols COMPARE subroutine
+wrongflag       res 1	    ; if an incorrect pin entry this value is high KEYPAD subroutine
+threetimes	res 1	    ; how many wrong attempts at pin entry remain
+fivetimes       res 1       ;five voice command attempts allowed	
+LED		res 1	    
+flasher		res 1 
+voicebyte	res 1	    ;if the voice byte is low or high 	
+       
+delay_count	res 1	     
 delay_countL    res 1	    
 delay_countG    res 1	
 delay_countT    res 1	
-LED		res 1
-voicebyte	res 1	    ;if the voice byte is low or high 	
-fivetimes       res 1       ;five voice command attempts allowed
-flasher		res 1 
+    
 
-;*******************************************************************************
+;************************** setup **************************************
 rst	code	0	    ; reset vector
 	goto	setup
 pdata	code		    ; a section of programme memory for storing data
@@ -49,59 +53,66 @@ enable	bsf	PADCFG1, REPU, BANKED		; PortE pull-ups on
 	movlb	0x00				; set BSR back to Bank 0
 	
 	clrf	LATE
-;*******************************************************************************		
+;***************** read values from EE_PROM memory ********************************************* 
+	
 	call t3read     ;getting the pre-stored values from the last time the safe was switched on from ee memory
-	call t5read	
+	call t5read	;this routine takes a while 
 	call c1read
 	call c2read
 	call c3read
 	call c4read 
 	call lockread
-;*******************************************************************************	
-	movlw   0x00	;locker output port for whether the safe is unlocked or locked, this port is the input for the hardware lock circuit	   
-	movwf   TRISH, ACCESS	
-	clrf    PORTH
-	call	delay 
-	movff   lock, PORTH 
-	
+
 ;********************* safe setup ********************
+	movlw   0x00		;whether the safe is unlocked or locked, port is the input for lock circuit	   
+	movwf   TRISJ, ACCESS	
+	clrf    PORTJ
+	call	delay 
+	movff   lock, PORTJ
+	
+	
 	movlw   0xf0			;upper nibbles input lower nibbles output 
 	movwf   TRISD, ACCESS		;PORT D output for lEDs
 	clrf    PORTD
 	call	delay 
+	
+	
 	clrf	wrongflag		;clears wrong pin indicator	 
-	call	clear_display
-	call    resetbreach		;needs taking out and eeprom memory making 
+	call	clear_display		;clears lcd to begin
+	
 ;********************preliminary data collection to see how long delays are****************
-	movlw   0x00	    
-	movwf   TRISJ, ACCESS
-osci	movlw   0x00			;a four instruction routine 
-	movwf   PORTJ, 0 
-        movlw   0xff
-	movwf   PORTJ, 0
-	goto    osci
+;	movlw   0x00	    
+;	movwf   TRISJ, ACCESS
+;oscill	movlw   0x00			;a four instruction routine output to oscilloscope to measure the length of one execution 
+;	movwf   PORTJ, 0 
+;        movlw   0xff
+;	movwf   PORTJ, 0
+;	goto    oscill
 	
-;******************** checking which action to complete (lock,unlock,voice unlock, reset pin) *******************;
+;******************** ACTION LOOP (lock,unlock,voice unlock, reset pin) *******************;
 	
-checkb	call	keypad
+checkb	call	keypad		    ;b on keypad is unlock with pin entry
 	movlw	0xeb		    ;eb is column/row no. of button B
 	cpfseq	checktostart	    
 	goto	checkc
         call	unlockp
 	movlw	0x00
 	cpfsgt	wrongflag	    ;checks if wrong pin has been flagged, skips if more than 0  
-	call	unlock		    ;UNLOCKS THE SAFE!!!!!
-checkc	call	keypad
+	call	unlock		    ;UNLOCKS THE SAFE
+
+checkc	call	keypad		    ;c on keypad locks the safe
 	movlw	0xed		    ;ed is column/row no. of button C
 	cpfseq	checktostart	   
 	goto	checks	    	    
-        call	locker		    ;lock the safe again 
-checks	call   keypad
+        call	locker		    ;lock 
+
+checks	call   keypad		    ;* on keypad is unlock with voice entry
 	movlw  0x7e		    ;7e is column/row no. of button *
 	cpfseq checktostart	    
 	goto	check#
 	call    voice		    ;calls the voce unlocking subroutine 
-check#	call	keypad
+
+check#	call	keypad		    ;# on keypad is reset the pincode
 	movlw	0xde		    ;de is column/row no. of button #
 	cpfseq	checktostart	   
 	goto	checkb
@@ -111,14 +122,15 @@ check#	call	keypad
 	cpfsgt	wrongflag 	
 	call	store		    ;calls pin store subroutine 
 
-	goto	checkb		    ;loops back to checking for command buttons
+	goto	checkb		    ;loops back to beginning of ACTION routine 
         
 
 
 	
 ;###################### storing pin number #################################
+	;routine sets the pincode and stores it into EE_PROM memory 
 store	
-      ;checking if the buttons have been released 
+	;checking if the buttons have been released 
 	call	release
 	call	Mnewp
 keycheck1			    ;checking if there is a value other than ff stored in checktostart
