@@ -1,10 +1,6 @@
-# Microprocessors
+# Safe Microprocessors project
 Repository for Physics Year 3 microprocessors lab
 
-A simple assembly program for PIC18 microprocessor, that counts to 100, putting the current count value out onto PORTB
+Code is contained in files Safe_main, Subroutines, LCD and Messages. 
 
-Reads a table (message) from programme memory to data memory 
-
-Initialises UART and writes a message (the table) to UART 
-
-Initialises LCD and writes the message to the LCD
+Safe_main is the first file with the set up, and it calls the others from this file. 
